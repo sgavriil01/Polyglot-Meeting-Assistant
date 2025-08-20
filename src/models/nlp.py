@@ -42,7 +42,7 @@ class NLPProcessor:
             logging.info("Loading summarization model...")
             self.summarizer = pipeline(
                 "summarization",
-                model="facebook/bart-large-cnn",
+                model="sshleifer/distilbart-cnn-12-6",  # Smaller, more reliable model
                 device=0 if self.device == "cuda" else -1,
                 torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
             )
@@ -87,24 +87,27 @@ class NLPProcessor:
         
         try:
             # Split long text into chunks for better processing
-            chunks = self._chunk_text(text, max_chunk=1000)
+            chunks = self._chunk_text(text, max_chunk=512)  # Smaller chunks for distilbart
             summaries = []
             
             for chunk in chunks:
-                if len(chunk.strip()) > 50:  # Skip very short chunks
-                    # Adjust lengths based on chunk size
-                    chunk_max = min(max_length, len(chunk.split()) // 4)
-                    chunk_min = min(min_length, chunk_max // 3)
+                chunk_clean = chunk.strip()
+                if len(chunk_clean) > 50:  # Skip very short chunks
+                    # Calculate appropriate lengths
+                    input_length = len(chunk_clean.split())
+                    chunk_max = min(max_length, max(30, input_length // 3))
+                    chunk_min = min(min_length, max(10, chunk_max // 3))
                     
-                    if chunk_max > chunk_min:
+                    if input_length > 15:  # Only summarize if enough content
                         summary = self.summarizer(
-                            chunk, 
+                            chunk_clean, 
                             max_length=chunk_max, 
                             min_length=chunk_min,
                             do_sample=False,
-                            truncation=True
+                            truncation=True,
+                            clean_up_tokenization_spaces=True
                         )[0]['summary_text']
-                        summaries.append(summary)
+                        summaries.append(summary.strip())
             
             final_summary = " ".join(summaries)
             
@@ -115,7 +118,8 @@ class NLPProcessor:
                     max_length=max_length,
                     min_length=min_length,
                     do_sample=False,
-                    truncation=True
+                    truncation=True,
+                    clean_up_tokenization_spaces=True
                 )[0]['summary_text']
             
             return final_summary
@@ -199,10 +203,11 @@ class NLPProcessor:
             List of key topics
         """
         try:
-            # Simple keyword extraction based on frequency
-            words = re.findall(r'\b[A-Za-z]{3,}\b', text.lower())
+            # Clean and tokenize text
+            text_clean = re.sub(r'[^\w\s]', ' ', text.lower())
+            words = text_clean.split()
             
-            # Filter out common words
+            # Filter out common words and short words
             stopwords = {
                 'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 
                 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day',
@@ -212,22 +217,71 @@ class NLPProcessor:
                 'that', 'with', 'have', 'from', 'they', 'know', 'want',
                 'been', 'good', 'much', 'some', 'time', 'very', 'when',
                 'come', 'here', 'just', 'like', 'long', 'make', 'many',
-                'over', 'such', 'take', 'than', 'them', 'well', 'were'
+                'over', 'such', 'take', 'than', 'them', 'well', 'were',
+                'also', 'about', 'after', 'first', 'would', 'there',
+                'today', 'should', 'meeting', 'need', 'discussed'
             }
             
-            # Count word frequencies
+            # Count word frequencies (only words with 4+ characters)
             word_freq = {}
             for word in words:
-                if word not in stopwords and len(word) > 3:
+                if (len(word) >= 4 and 
+                    word not in stopwords and 
+                    word.isalpha() and
+                    not word.isdigit()):
                     word_freq[word] = word_freq.get(word, 0) + 1
             
-            # Get top topics
+            # Get top topics by frequency
             topics = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
-            return [topic[0].title() for topic, _ in topics[:num_topics]]
+            
+            # Extract meaningful compound terms as well
+            bigrams = self._extract_bigrams(text_clean, stopwords)
+            
+            # Combine single words and bigrams
+            all_topics = []
+            
+            # Add top single words
+            for word, freq in topics[:num_topics]:
+                if freq > 1:  # Only include words that appear more than once
+                    all_topics.append(word.title())
+            
+            # Add top bigrams
+            for bigram, freq in bigrams[:max(2, num_topics//2)]:
+                if freq > 1:
+                    all_topics.append(bigram.title())
+            
+            # Remove duplicates and limit to num_topics
+            seen = set()
+            unique_topics = []
+            for topic in all_topics:
+                if topic.lower() not in seen:
+                    seen.add(topic.lower())
+                    unique_topics.append(topic)
+                    if len(unique_topics) >= num_topics:
+                        break
+            
+            return unique_topics or ["General Discussion"]
             
         except Exception as e:
             logging.error(f"Topic extraction failed: {e}")
-            return []
+            return ["General Discussion"]
+    
+    def _extract_bigrams(self, text: str, stopwords: set) -> List[tuple]:
+        """Extract meaningful two-word phrases"""
+        words = text.split()
+        bigrams = {}
+        
+        for i in range(len(words) - 1):
+            word1, word2 = words[i], words[i + 1]
+            
+            if (len(word1) >= 3 and len(word2) >= 3 and
+                word1 not in stopwords and word2 not in stopwords and
+                word1.isalpha() and word2.isalpha()):
+                
+                bigram = f"{word1} {word2}"
+                bigrams[bigram] = bigrams.get(bigram, 0) + 1
+        
+        return sorted(bigrams.items(), key=lambda x: x[1], reverse=True)
     
     def _chunk_text(self, text: str, max_chunk: int = 1000) -> List[str]:
         """Split text into chunks for processing"""
