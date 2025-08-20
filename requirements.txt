@@ -1,0 +1,5 @@
+fastapi
+gradi o
+transformers
+whisper
+faiss-cpu
