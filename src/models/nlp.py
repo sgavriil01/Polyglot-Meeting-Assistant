@@ -38,11 +38,11 @@ class NLPProcessor:
         try:
             logging.info(f"Loading NLP models on {self.device}")
             
-            # Summarization - using a lightweight model
+            # Summarization - using T5-small for better sentence completion
             logging.info("Loading summarization model...")
             self.summarizer = pipeline(
                 "summarization",
-                model="sshleifer/distilbart-cnn-12-6",  # Smaller, more reliable model
+                model="t5-small",  # Better sentence completion, smaller size
                 device=0 if self.device == "cuda" else -1,
                 torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
             )
@@ -312,6 +312,342 @@ class NLPProcessor:
         # Simple sentence splitting
         sentences = re.split(r'[.!?]+', text)
         return [s.strip() for s in sentences if s.strip()]
+    
+    def generate_comprehensive_summary(self, text: str) -> Dict[str, Any]:
+        """
+        Generate a comprehensive meeting summary with structured components
+        
+        Returns:
+            Dict with summary, action_items, key_decisions, timelines, and participants
+        """
+        try:
+            # Basic summary
+            basic_summary = self.summarize_text(text, max_length=100, min_length=30)
+            
+            # Enhanced action items with better detection
+            action_items = self.extract_enhanced_action_items(text)
+            
+            # Extract key decisions and timelines
+            decisions = self.extract_key_decisions(text)
+            timelines = self.extract_timelines(text)
+            participants = self.extract_participants(text)
+            
+            return {
+                "summary": basic_summary,
+                "action_items": action_items,
+                "key_decisions": decisions,
+                "timelines": timelines,
+                "participants": participants,
+                "topics": self.extract_key_topics(text)
+            }
+            
+        except Exception as e:
+            logging.error(f"Comprehensive summary generation failed: {e}")
+            return {
+                "summary": self.summarize_text(text),
+                "action_items": self.extract_action_items(text),
+                "key_decisions": [],
+                "timelines": [],
+                "participants": [],
+                "topics": self.extract_key_topics(text)
+            }
+    
+    def extract_enhanced_action_items(self, text: str) -> List[Dict[str, Any]]:
+        """Enhanced action item extraction with better pattern recognition"""
+        import re
+        sentences = self._split_sentences(text)
+        action_items = []
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(sentence) < 10:
+                continue
+            
+            # Pattern 1: Direct assignments "Name, can you/will you..."
+            direct_assignment = re.search(r'([A-Z][a-z]+),?\s+(can you|will you|should you|need you to)\s+(.+)', sentence)
+            if direct_assignment:
+                assignee = direct_assignment.group(1)
+                task = direct_assignment.group(3)
+                deadline = self._extract_deadline(sentence)
+                
+                action_items.append({
+                    "text": sentence,
+                    "assignee": assignee,
+                    "deadline": deadline,
+                    "category": self._categorize_action_item(sentence),
+                    "confidence": 0.9
+                })
+                continue
+            
+            # Pattern 2: Future tense with names "Name will..."
+            future_pattern = re.search(r'([A-Z][a-z]+)\s+(?:will|can|should)\s+(.+)', sentence)
+            if future_pattern:
+                assignee = future_pattern.group(1)
+                deadline = self._extract_deadline(sentence)
+                
+                action_items.append({
+                    "text": sentence,
+                    "assignee": assignee,  
+                    "deadline": deadline,
+                    "category": self._categorize_action_item(sentence),
+                    "confidence": 0.8
+                })
+                continue
+            
+            # Pattern 3: Implicit actions with strong verbs
+            strong_verbs = r'\b(?:prepare|create|develop|implement|fix|contact|survey|reach out|review|audit|calculate|draft|notify|schedule|coordinate)\b'
+            if re.search(strong_verbs, sentence, re.IGNORECASE):
+                # Try to find associated name in context
+                name_match = re.search(r'\b([A-Z][a-z]+)\b', sentence)
+                assignee = name_match.group(1) if name_match else "Unassigned"
+                deadline = self._extract_deadline(sentence)
+                
+                # Only add if it sounds like an action
+                if any(word in sentence.lower() for word in ['need', 'should', 'have to', 'must', 'by', 'due']):
+                    action_items.append({
+                        "text": sentence,
+                        "assignee": assignee,
+                        "deadline": deadline,
+                        "category": self._categorize_action_item(sentence),
+                        "confidence": 0.7
+                    })
+        
+        # Remove duplicates and sort by confidence
+        seen_texts = set()
+        unique_items = []
+        for item in sorted(action_items, key=lambda x: x['confidence'], reverse=True):
+            if item['text'] not in seen_texts:
+                seen_texts.add(item['text'])
+                unique_items.append(item)
+        
+        return unique_items
+    
+    def _extract_deadline(self, text: str) -> str:
+        """Extract deadline information from text"""
+        import re
+        
+        deadline_patterns = [
+            r'by\s+((?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday))',
+            r'by\s+(end\s+of\s+(?:this\s+|next\s+)?week)',
+            r'by\s+((?:this\s+|next\s+)?(?:week|month|quarter))',
+            r'(?:due|deadline)\s+(\w+day)',
+            r'by\s+(\w+\s+\d+)',
+            r'within\s+(\d+\s+(?:hours?|days?|weeks?))',
+            r'(?:in|after)\s+(\d+\s+(?:hours?|days?|weeks?))',
+        ]
+        
+        for pattern in deadline_patterns:
+            match = re.search(pattern, text.lower())
+            if match:
+                return match.group(1)
+        
+        return "No deadline"
+    
+    def extract_key_decisions(self, text: str) -> List[str]:
+        """Extract key decisions made in the meeting"""
+        import re
+        decisions = []
+        sentences = self._split_sentences(text)
+        
+        # Enhanced decision patterns
+        decision_patterns = [
+            # Explicit decision language
+            r'(?:we(?:\s+have)?|i)\s+(?:decided|agreed|concluded|resolved|determined)\s+(?:to|that)\s+(.+)',
+            
+            # Approval/rejection patterns
+            r'(?:approved|rejected|denied|accepted|endorsed)\s+(.+)',
+            
+            # Future commitment patterns
+            r'(?:we will|we\'ll|going forward|from now on|starting)\s+(.+)',
+            
+            # Vote/consensus patterns  
+            r'(?:voted to|consensus is|everyone agrees?)\s+(.+)',
+            
+            # Budget/resource allocation
+            r'(?:budget|allocated?|spending|invest)\s+(.+?)(?:approved|rejected|on)',
+            
+            # Final decision indicators
+            r'(?:final decision|bottom line|conclusion)\s+(?:is|was)?\s*(.+)',
+        ]
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(sentence) < 15:
+                continue
+                
+            # Check for pattern matches
+            for pattern in decision_patterns:
+                if re.search(pattern, sentence, re.IGNORECASE):
+                    decisions.append(sentence)
+                    break  # Only match first pattern per sentence
+        
+        # Also look for sentences with strong decision indicators
+        decision_indicators = [
+            "decided", "agreed", "chose", "selected", "approved",
+            "going with", "moving forward", "strategy", "approach",
+            "rejected", "denied", "voted", "consensus", "concluded"
+        ]
+        
+        for sentence in sentences:
+            if len(sentence) < 20:
+                continue
+                
+            sentence_lower = sentence.lower()
+            if any(indicator in sentence_lower for indicator in decision_indicators):
+                # Check if we haven't already captured this decision
+                if sentence not in decisions:
+                    decisions.append(sentence)
+        
+        return decisions[:8]  # Return top 8 decisions
+    
+    def extract_timelines(self, text: str) -> List[Dict[str, str]]:
+        """Extract timeline information with enhanced pattern recognition"""
+        import re
+        timelines = []
+        sentences = self._split_sentences(text)
+        
+        # Enhanced timeline patterns
+        timeline_patterns = [
+            # Specific date ranges
+            (r'(\d+[-–]\d+)\s+(weeks?|months?|days?)', 'duration', 0.9),
+            
+            # Approximate timeframes
+            (r'(?:probably|approximately|about|around)\s+(\d+)\s+(weeks?|months?|days?)', 'estimate', 0.8),
+            
+            # Deadline patterns
+            (r'(?:by|due|deadline|complete by)\s+(\w+day|\w+\s+\d+|\w+\s+\d+th?)', 'deadline', 0.9),
+            
+            # Phase/milestone patterns
+            (r'(?:phase|milestone|stage)\s+(\d+|one|two|three)\s+(?:will|should|expected)\s+(?:take|last|be)\s+(.+)', 'phase', 0.8),
+            
+            # Project timeline patterns
+            (r'(?:project|timeline|schedule|plan)\s+(?:will|should|expected to)\s+(?:take|last|be|complete in)\s+(.+)', 'project_timeline', 0.8),
+            
+            # Relative time patterns
+            (r'(?:in|within|after|over)\s+(?:the\s+)?(?:next\s+)?(\d+)\s+(weeks?|months?|days?|quarters?)', 'relative', 0.7),
+            
+            # Quarterly/annual patterns
+            (r'(?:q[1-4]|quarter\s+[1-4]|first|second|third|fourth)\s+quarter', 'quarterly', 0.8),
+            
+            # Start/end patterns
+            (r'(?:start|begin|launch|kick off)\s+(?:in|on|by)\s+(.+)', 'start_date', 0.7),
+            (r'(?:end|finish|complete|wrap up)\s+(?:in|on|by)\s+(.+)', 'end_date', 0.7)
+        ]
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(sentence) < 10:
+                continue
+                
+            for pattern, timeline_type, confidence in timeline_patterns:
+                match = re.search(pattern, sentence, re.IGNORECASE)
+                if match:
+                    if len(match.groups()) >= 2:
+                        timeline_text = f"{match.group(1)} {match.group(2)}"
+                    else:
+                        timeline_text = match.group(1)
+                    
+                    timelines.append({
+                        "timeline": timeline_text,
+                        "context": sentence,
+                        "type": timeline_type,
+                        "confidence": confidence
+                    })
+                    break  # Only match first pattern per sentence
+        
+        # Also look for general time-related sentences
+        time_keywords = ['weeks', 'months', 'days', 'timeline', 'schedule', 'deadline', 'due', 'by', 'quarter', 'year']
+        
+        for sentence in sentences:
+            if len(sentence) < 15:
+                continue
+                
+            sentence_lower = sentence.lower()
+            if any(keyword in sentence_lower for keyword in time_keywords):
+                # Check if we haven't already captured this timeline
+                if not any(sentence in t['context'] for t in timelines):
+                    # Extract potential time information
+                    time_match = re.search(r'(\d+)\s+(weeks?|months?|days?|quarters?)', sentence_lower)
+                    if time_match:
+                        timelines.append({
+                            "timeline": time_match.group(0),
+                            "context": sentence,
+                            "type": "general",
+                            "confidence": 0.6
+                        })
+        
+        # Sort by confidence and remove duplicates
+        seen_contexts = set()
+        unique_timelines = []
+        
+        for timeline in sorted(timelines, key=lambda x: x['confidence'], reverse=True):
+            context_key = timeline['context'][:50]  # Use first 50 chars as key
+            if context_key not in seen_contexts:
+                seen_contexts.add(context_key)
+                unique_timelines.append(timeline)
+        
+        return unique_timelines[:6]  # Return top 6 timelines
+        
+        return timelines
+    
+    def extract_participants(self, text: str) -> List[str]:
+        """Extract meeting participants mentioned by name"""
+        import re
+        
+        # Better patterns for name detection
+        participants = set()
+        
+        # Pattern 1: "Name:" at start of line (speaker format)
+        speaker_pattern = r'^([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+)*?):'
+        speakers = re.findall(speaker_pattern, text, re.MULTILINE)
+        participants.update(speakers)
+        
+        # Pattern 2: Direct address "Name, can you..." or "Name will..."
+        address_pattern = r'\b([A-Z][a-z]{2,}),?\s+(?:can you|will you|should|needs? to|is responsible)'
+        addressed = re.findall(address_pattern, text)
+        participants.update(addressed)
+        
+        # Pattern 3: Titles with names "Manager Kate", "CEO Lisa"
+        title_pattern = r'(?:Manager|Director|CEO|CTO|CFO|VP)\s+([A-Z][a-z]+)'
+        titled = re.findall(title_pattern, text)
+        participants.update(titled)
+        
+        # Filter out common false positives and non-names
+        false_positives = {
+            'API', 'CEO', 'CTO', 'CFO', 'VP', 'QA', 'UI', 'UX', 'SQL', 'AWS', 'GPU',
+            'GitHub', 'Google', 'Apple', 'Microsoft', 'Amazon', 'Facebook', 'Stripe',
+            'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December',
+            'Good', 'Great', 'Okay', 'Sure', 'Thanks', 'Perfect', 'Excellent',
+            'Marketing', 'Engineering', 'Sales', 'Finance', 'Product', 'Legal',
+            'Actually', 'Probably', 'Maybe', 'Should', 'Could', 'Would',
+            'Overall', 'Alright', 'Absolutely', 'Definitely'
+        }
+        
+        # Additional filtering: names should be 3-12 characters, alphabetic
+        valid_participants = []
+        for name in participants:
+            if (3 <= len(name) <= 12 and 
+                name not in false_positives and 
+                name.isalpha() and
+                not name.isupper() and
+                name[0].isupper()):
+                valid_participants.append(name)
+        
+        return sorted(list(set(valid_participants)))[:8]  # Limit to 8 most likely names
+    
+    def _get_sentence_containing(self, text: str, position: int) -> str:
+        """Get the sentence containing a specific character position"""
+        sentences = self._split_sentences(text)
+        current_pos = 0
+        
+        for sentence in sentences:
+            if current_pos <= position <= current_pos + len(sentence):
+                return sentence.strip()
+            current_pos += len(sentence) + 1
+        
+        return ""
     
     def _categorize_action_item(self, text: str) -> str:
         """Categorize action items by type"""
