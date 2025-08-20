@@ -3,7 +3,19 @@ import torch
 from typing import Dict, Any, List
 import logging
 import os
-from utils.performance import timing_decorator
+import time
+import functools
+
+def timing_decorator(func):
+    """Simple timing decorator"""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        logging.info(f"{func.__name__} executed in {end_time - start_time:.2f} seconds")
+        return result
+    return wrapper
 
 class WhisperASR:
     """Whisper-based Automatic Speech Recognition"""
