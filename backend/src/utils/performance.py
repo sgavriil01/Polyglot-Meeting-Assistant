@@ -1,6 +1,7 @@
 import time
 import functools
 import logging
+import os
 from typing import Callable, Any
 
 def timing_decorator(func: Callable) -> Callable:
@@ -20,20 +21,36 @@ def timing_decorator(func: Callable) -> Callable:
 class ModelManager:
     """Singleton pattern for managing model instances"""
     _instances = {}
+    models = {}  # Add models attribute for storing model instances
     
     @classmethod
     def get_model(cls, model_type: str, **kwargs):
         """Get or create model instance"""
         if model_type not in cls._instances:
             if model_type == "asr":
-                from ..models.asr import WhisperASR
+                try:
+                    from models.asr import WhisperASR
+                except ImportError:
+                    import sys
+                    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+                    from models.asr import WhisperASR
                 cls._instances[model_type] = WhisperASR(**kwargs)
             elif model_type == "nlp":
-                from ..models.nlp import NLPProcessor
+                try:
+                    from models.nlp import NLPProcessor
+                except ImportError:
+                    import sys
+                    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+                    from models.nlp import NLPProcessor
                 cls._instances[model_type] = NLPProcessor(**kwargs)
             elif model_type == "search":
-                from ..models.search import SemanticSearch
-                cls._instances[model_type] = SemanticSearch(**kwargs)
+                try:
+                    from models.search import MeetingSearchEngine
+                except ImportError:
+                    import sys
+                    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+                    from models.search import MeetingSearchEngine
+                cls._instances[model_type] = MeetingSearchEngine(**kwargs)
             else:
                 raise ValueError(f"Unknown model type: {model_type}")
         
