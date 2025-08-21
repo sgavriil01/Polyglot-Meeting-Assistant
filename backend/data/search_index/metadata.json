@@ -1,0 +1,38 @@
+[
+  {
+    "meeting_id": "test_meeting_001",
+    "meeting_title": "Test Audio Meeting",
+    "meeting_date": "2024-01-01T00:00:00",
+    "content_type": "transcript",
+    "text": "See you next time!",
+    "participants": [],
+    "index_position": 0
+  },
+  {
+    "meeting_id": "test_meeting_001",
+    "meeting_title": "Test Audio Meeting",
+    "meeting_date": "2024-01-01T00:00:00",
+    "content_type": "summary",
+    "text": "Text too short to summarize",
+    "participants": [],
+    "index_position": 1
+  },
+  {
+    "meeting_id": "test_meeting_001",
+    "meeting_title": "Test Audio Meeting",
+    "meeting_date": "2024-01-01T00:00:00",
+    "content_type": "transcript",
+    "text": "See you next time!",
+    "participants": [],
+    "index_position": 2
+  },
+  {
+    "meeting_id": "test_meeting_001",
+    "meeting_title": "Test Audio Meeting",
+    "meeting_date": "2024-01-01T00:00:00",
+    "content_type": "summary",
+    "text": "Text too short to summarize",
+    "participants": [],
+    "index_position": 3
+  }
+]

@@ -77,13 +77,17 @@ async def transcribe_audio(audio_path: str, asr_processor) -> str:
         
         # Run transcription in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
-        transcript = await loop.run_in_executor(
+        result = await loop.run_in_executor(
             None, 
             asr_processor.transcribe, 
             audio_path
         )
         
-        return transcript
+        # Extract text from result (ASR returns dict with 'text' key)
+        if isinstance(result, dict):
+            return result.get('text', '')
+        else:
+            return str(result)
         
     except Exception as e:
         logging.error(f"Error transcribing audio {audio_path}: {e}")

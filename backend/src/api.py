@@ -23,6 +23,7 @@ from contextlib import asynccontextmanager
 from models.search import MeetingSearchEngine
 from models.asr import WhisperASR
 from models.nlp import NLPProcessor
+from utils.audio_utils import process_audio_file
 
 # Pydantic models for API
 class SearchRequest(BaseModel):
@@ -155,12 +156,17 @@ async def upload_file(file: UploadFile = File(...)):
         # Process file based on type
         file_ext = Path(file_path).suffix.lower()
         
-        if file_ext in ['.mp3', '.wav', '.m4a', '.flac', '.ogg']:
-            # Audio file - for now, return placeholder
-            transcript = f"[Audio file: {file.filename}] - Processing audio files requires additional setup."
-        elif file_ext in ['.mp4', '.avi', '.mov', '.mkv', '.webm']:
-            # Video file - for now, return placeholder
-            transcript = f"[Video file: {file.filename}] - Processing video files requires additional setup."
+        if file_ext in ['.mp3', '.wav', '.m4a', '.flac', '.ogg', '.mp4', '.avi', '.mov', '.mkv', '.webm']:
+            # Audio/Video file - process with ASR
+            if asr_processor:
+                try:
+                    transcript = await process_audio_file(str(file_path), asr_processor)
+                    if isinstance(transcript, dict):
+                        transcript = transcript.get('text', str(transcript))
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Audio/Video processing failed: {str(e)}")
+            else:
+                raise HTTPException(status_code=503, detail="ASR processor not available")
         else:
             # Text file
             with open(file_path, "r", encoding="utf-8") as f:
