@@ -55,6 +55,22 @@ polyglot-meeting-assistant/
 - Node.js 18+
 - npm or yarn
 
+### System Dependencies (for Audio/Video Processing)
+- **FFmpeg** - Required for video processing and audio extraction
+  ```bash
+  # Ubuntu/Debian
+  sudo apt update && sudo apt install ffmpeg
+  
+  # Fedora
+  sudo dnf install ffmpeg
+  
+  # macOS
+  brew install ffmpeg
+  
+  # Windows
+  # Download from https://ffmpeg.org/download.html
+  ```
+
 ### 1. Clone the Repository
 ```bash
 git clone <repository-url>
