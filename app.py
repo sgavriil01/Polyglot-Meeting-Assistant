@@ -6,11 +6,28 @@ from datetime import datetime
 # Set up cache directory with proper permissions BEFORE importing any AI models
 cache_dir = os.path.join(os.getcwd(), ".cache")
 os.makedirs(cache_dir, exist_ok=True)
+
+# Create subdirectories with proper permissions
+whisper_cache = os.path.join(cache_dir, "whisper")
+transformers_cache = os.path.join(cache_dir, "huggingface")
+os.makedirs(whisper_cache, exist_ok=True)
+os.makedirs(transformers_cache, exist_ok=True)
+
+# Set permissions recursively
+import stat
+for root, dirs, files in os.walk(cache_dir):
+    for d in dirs:
+        os.chmod(os.path.join(root, d), stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    for f in files:
+        os.chmod(os.path.join(root, f), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+
 os.environ["TRANSFORMERS_CACHE"] = cache_dir
 os.environ["HF_HOME"] = cache_dir
 os.environ["XDG_CACHE_HOME"] = cache_dir
 os.environ["WHISPER_CACHE_DIR"] = cache_dir
 print(f"📁 Cache directory set to: {cache_dir}")
+print(f"📁 Whisper cache: {whisper_cache}")
+print(f"📁 Transformers cache: {transformers_cache}")
 
 from fastapi import FastAPI, Request, File, UploadFile, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
