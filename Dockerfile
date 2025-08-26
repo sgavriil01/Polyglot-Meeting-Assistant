@@ -21,6 +21,10 @@ RUN mkdir -p .cache && chmod 755 .cache
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PORT=7860
+ENV XDG_CACHE_HOME=/app/.cache
+ENV WHISPER_CACHE_DIR=/app/.cache
+ENV TRANSFORMERS_CACHE=/app/.cache
+ENV HF_HOME=/app/.cache
 
 # Expose port
 EXPOSE 7860

@@ -2,6 +2,16 @@ import os
 import sys
 from pathlib import Path
 from datetime import datetime
+
+# Set up cache directory with proper permissions BEFORE importing any AI models
+cache_dir = os.path.join(os.getcwd(), ".cache")
+os.makedirs(cache_dir, exist_ok=True)
+os.environ["TRANSFORMERS_CACHE"] = cache_dir
+os.environ["HF_HOME"] = cache_dir
+os.environ["XDG_CACHE_HOME"] = cache_dir
+os.environ["WHISPER_CACHE_DIR"] = cache_dir
+print(f"📁 Cache directory set to: {cache_dir}")
+
 from fastapi import FastAPI, Request, File, UploadFile, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -44,13 +54,6 @@ async def startup_event():
     print("🚀 Initializing Polyglot Meeting Assistant...")
     
     try:
-        # Set up cache directory with proper permissions
-        cache_dir = os.path.join(os.getcwd(), ".cache")
-        os.makedirs(cache_dir, exist_ok=True)
-        os.environ["TRANSFORMERS_CACHE"] = cache_dir
-        os.environ["HF_HOME"] = cache_dir
-        print(f"📁 Cache directory set to: {cache_dir}")
-        
         # Initialize components with timeout handling
         print("🔄 Loading Whisper ASR model...")
         asr_processor = WhisperASR()
