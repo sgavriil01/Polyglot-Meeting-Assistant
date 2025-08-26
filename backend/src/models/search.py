@@ -45,10 +45,10 @@ class MeetingSearchEngine:
             index_path: Path to store the FAISS index and metadata
         """
         self.model_name = model_name
-        # Use cache directory for index path to avoid permission issues
+        # Use data directory for search index (persistent storage)
         if index_path is None:
-            cache_dir = os.environ.get("HF_HOME", "/app/.cache")
-            self.index_path = os.path.join(cache_dir, "search_index")
+            data_dir = os.environ.get("SEARCH_INDEX_DIR", "/app/data/search_index")
+            self.index_path = data_dir
         else:
             self.index_path = index_path
         self.embedding_dim = 384  # Dimension for all-MiniLM-L6-v2

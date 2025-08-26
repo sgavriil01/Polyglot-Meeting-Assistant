@@ -5,22 +5,37 @@ from datetime import datetime
 
 # Set up cache directory with proper permissions BEFORE importing any AI models
 cache_dir = os.path.join(os.getcwd(), ".cache")
+data_dir = os.path.join(os.getcwd(), "data")
+
+# Create directories
 os.makedirs(cache_dir, exist_ok=True)
+os.makedirs(data_dir, exist_ok=True)
 
 # Create subdirectories
 whisper_cache = os.path.join(cache_dir, "whisper")
 transformers_cache = os.path.join(cache_dir, "huggingface")
+search_index_dir = os.path.join(data_dir, "search_index")
+sessions_dir = os.path.join(data_dir, "sessions")
+
 os.makedirs(whisper_cache, exist_ok=True)
 os.makedirs(transformers_cache, exist_ok=True)
+os.makedirs(search_index_dir, exist_ok=True)
+os.makedirs(sessions_dir, exist_ok=True)
 
 # Set environment variables
 os.environ["TRANSFORMERS_CACHE"] = cache_dir
 os.environ["HF_HOME"] = cache_dir
 os.environ["XDG_CACHE_HOME"] = cache_dir
 os.environ["WHISPER_CACHE_DIR"] = cache_dir
+os.environ["SEARCH_INDEX_DIR"] = search_index_dir
+os.environ["SESSIONS_DIR"] = sessions_dir
+
 print(f"📁 Cache directory set to: {cache_dir}")
+print(f"📁 Data directory set to: {data_dir}")
 print(f"📁 Whisper cache: {whisper_cache}")
 print(f"📁 Transformers cache: {transformers_cache}")
+print(f"📁 Search index: {search_index_dir}")
+print(f"📁 Sessions: {sessions_dir}")
 
 from fastapi import FastAPI, Request, File, UploadFile, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles

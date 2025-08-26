@@ -15,9 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Create cache directories with proper permissions
-RUN mkdir -p .cache/whisper .cache/huggingface && \
-    chmod -R 777 .cache
+# Create cache and data directories with proper permissions
+RUN mkdir -p .cache/whisper .cache/huggingface data/search_index data/sessions && \
+    chmod -R 777 .cache && \
+    chmod -R 777 data
 
 # Set environment variables
 ENV PYTHONPATH=/app
