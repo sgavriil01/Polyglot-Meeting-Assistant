@@ -1,3 +1,14 @@
+---
+title: Polyglot Meeting Assistant
+emoji: 🎙️
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 4.0.0
+app_file: app.py
+pinned: false
+---
+
 # Polyglot Meeting Assistant
 
 An AI-powered meeting transcription and analysis tool that automatically transcribes audio, extracts key insights, and provides semantic search across your meetings.
