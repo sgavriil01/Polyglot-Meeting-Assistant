@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// Use relative URL for production (HuggingFace Spaces) or localhost for development
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? '/api/v1' 
+  : 'http://localhost:8000/api/v1';
 
 // Create axios instance
 const api = axios.create({
