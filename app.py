@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from datetime import datetime
 from fastapi import FastAPI, Request, File, UploadFile, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -50,11 +51,22 @@ async def startup_event():
         os.environ["HF_HOME"] = cache_dir
         print(f"📁 Cache directory set to: {cache_dir}")
         
-        # Initialize components
+        # Initialize components with timeout handling
+        print("🔄 Loading Whisper ASR model...")
         asr_processor = WhisperASR()
+        print("✅ Whisper loaded")
+        
+        print("🔄 Loading NLP models...")
         nlp_processor = NLPProcessor()
+        print("✅ NLP models loaded")
+        
+        print("🔄 Initializing search engine...")
         search_engine = MeetingSearchEngine()
+        print("✅ Search engine ready")
+        
+        print("🔄 Setting up session manager...")
         session_manager = SessionManager()
+        print("✅ Session manager ready")
         
         # Set global instances in api.routes for dependency injection
         api_router.asr_processor = asr_processor
@@ -65,6 +77,8 @@ async def startup_event():
         print("✅ All components initialized successfully!")
     except Exception as e:
         print(f"❌ Error initializing components: {e}")
+        import traceback
+        traceback.print_exc()
 
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
@@ -109,6 +123,16 @@ async def health_check():
             "search": search_engine is not None,
             "session_manager": session_manager is not None
         }
+    }
+
+# Simple status check
+@app.get("/status")
+async def status_check():
+    """Simple status check that doesn't require AI models"""
+    return {
+        "status": "running",
+        "message": "Server is responding",
+        "timestamp": str(datetime.now())
     }
 
 if __name__ == "__main__":

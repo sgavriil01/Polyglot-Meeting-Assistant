@@ -216,7 +216,7 @@ async def upload_file(
         # Process with NLP in parallel for better performance
         print(f"🧠 Processing with NLP (parallel)...")
         
-        # Use ThreadPoolExecutor for CPU-intensive NLP tasks
+        # Use ThreadPoolExecutor for CPU-intensive NLP tasks with timeout
         with ThreadPoolExecutor(max_workers=4) as executor:
             # Submit all NLP tasks in parallel
             summary_future = executor.submit(nlp.summarize_text, transcript_text)
@@ -224,11 +224,19 @@ async def upload_file(
             key_decisions_future = executor.submit(nlp.extract_key_decisions, transcript_text)
             timelines_future = executor.submit(nlp.extract_timelines, transcript_text)
             
-            # Wait for all tasks to complete
-            summary = summary_future.result()
-            action_items = action_items_future.result()
-            key_decisions = key_decisions_future.result()
-            timelines = timelines_future.result()
+            # Wait for all tasks to complete with timeout (30 seconds)
+            try:
+                summary = summary_future.result(timeout=30)
+                action_items = action_items_future.result(timeout=30)
+                key_decisions = key_decisions_future.result(timeout=30)
+                timelines = timelines_future.result(timeout=30)
+            except Exception as e:
+                print(f"⚠️ NLP processing timeout or error: {e}")
+                # Provide fallback values
+                summary = "Summary generation failed"
+                action_items = ["Action items extraction failed"]
+                key_decisions = ["Key decisions extraction failed"]
+                timelines = ["Timeline extraction failed"]
         
         # Prepare meeting data for search index
         meeting_data = {
