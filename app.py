@@ -108,8 +108,8 @@ async def startup_event():
         import traceback
         traceback.print_exc()
 
-# Include API routes
-app.include_router(api_router, prefix="/api/v1")
+# Include API routes (router already has /api/v1 prefix)
+app.include_router(api_router)
 
 # Debug: Print registered routes
 print("🔍 Registered routes:")
