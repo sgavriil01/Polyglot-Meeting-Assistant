@@ -111,6 +111,12 @@ async def startup_event():
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
 
+# Debug: Print registered routes
+print("🔍 Registered routes:")
+for route in app.routes:
+    if hasattr(route, 'path'):
+        print(f"  {route.methods} {route.path}")
+
 # Serve React app
 build_path = Path("frontend/build")
 if build_path.exists():
