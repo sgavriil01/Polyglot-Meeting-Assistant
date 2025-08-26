@@ -43,11 +43,24 @@ async def startup_event():
     print("🚀 Initializing Polyglot Meeting Assistant...")
     
     try:
+        # Set up cache directory with proper permissions
+        cache_dir = os.path.join(os.getcwd(), ".cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        os.environ["TRANSFORMERS_CACHE"] = cache_dir
+        os.environ["HF_HOME"] = cache_dir
+        print(f"📁 Cache directory set to: {cache_dir}")
+        
         # Initialize components
         asr_processor = WhisperASR()
         nlp_processor = NLPProcessor()
         search_engine = MeetingSearchEngine()
         session_manager = SessionManager()
+        
+        # Set global instances in api.routes for dependency injection
+        api_router.asr_processor = asr_processor
+        api_router.nlp_processor = nlp_processor
+        api_router.search_engine = search_engine
+        api_router.session_manager = session_manager
         
         print("✅ All components initialized successfully!")
     except Exception as e:
