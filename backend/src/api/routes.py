@@ -215,23 +215,31 @@ async def upload_file(
         
         # Process with NLP in parallel for better performance
         print(f"🧠 Processing with NLP (parallel)...")
+        print(f"📄 Text length: {len(transcript_text)} characters")
         
         # Use ThreadPoolExecutor for CPU-intensive NLP tasks with timeout
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:  # Reduced workers for HuggingFace
             # Submit all NLP tasks in parallel
             summary_future = executor.submit(nlp.summarize_text, transcript_text)
             action_items_future = executor.submit(nlp.extract_action_items, transcript_text)
             key_decisions_future = executor.submit(nlp.extract_key_decisions, transcript_text)
             timelines_future = executor.submit(nlp.extract_timelines, transcript_text)
             
-            # Wait for all tasks to complete with timeout (30 seconds)
+            # Wait for all tasks to complete with timeout (60 seconds)
             try:
-                summary = summary_future.result(timeout=30)
-                action_items = action_items_future.result(timeout=30)
-                key_decisions = key_decisions_future.result(timeout=30)
-                timelines = timelines_future.result(timeout=30)
+                print("🔄 Waiting for NLP results...")
+                summary = summary_future.result(timeout=60)
+                print("✅ Summary completed")
+                action_items = action_items_future.result(timeout=60)
+                print("✅ Action items completed")
+                key_decisions = key_decisions_future.result(timeout=60)
+                print("✅ Key decisions completed")
+                timelines = timelines_future.result(timeout=60)
+                print("✅ Timelines completed")
             except Exception as e:
                 print(f"⚠️ NLP processing timeout or error: {e}")
+                import traceback
+                traceback.print_exc()
                 # Provide fallback values
                 summary = "Summary generation failed"
                 action_items = ["Action items extraction failed"]
@@ -297,6 +305,8 @@ async def upload_file(
                 pass
         
         print(f"❌ Error processing file: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
 @router.post("/search")
