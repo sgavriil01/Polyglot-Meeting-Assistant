@@ -125,6 +125,10 @@ if build_path.exists():
     @app.get("/{path:path}")
     async def serve_react_routes(path: str):
         """Serve React routes"""
+        # Skip API routes
+        if path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API route not found")
+        
         # Check if it's a static file
         static_file = build_path / path
         if static_file.exists() and static_file.is_file():
