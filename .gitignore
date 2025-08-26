@@ -43,6 +43,9 @@ data/sessions/
 !package.json
 !package-lock.json
 
+# Allow build directory for deployment
+!frontend/build/
+
 # Logs
 *.log
 logs/

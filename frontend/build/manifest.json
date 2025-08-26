@@ -1,0 +1,15 @@
+{
+  "short_name": "Polyglot Meeting",
+  "name": "Polyglot Meeting Assistant",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1976D2",
+  "background_color": "#ffffff"
+}
