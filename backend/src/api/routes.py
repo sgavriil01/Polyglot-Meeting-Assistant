@@ -236,26 +236,26 @@ async def upload_file(
             key_decisions_future = executor.submit(nlp.extract_key_decisions, transcript_text)
             timelines_future = executor.submit(nlp.extract_timelines, transcript_text)
             
-            # Wait for all tasks to complete with timeout (60 seconds)
+            # Wait for all tasks to complete with timeout (180 seconds for large files)
             try:
                 print("🔄 Waiting for NLP results...")
-                summary = summary_future.result(timeout=60)
+                summary = summary_future.result(timeout=180)
                 print("✅ Summary completed")
-                action_items = action_items_future.result(timeout=60)
+                action_items = action_items_future.result(timeout=180)
                 print("✅ Action items completed")
-                key_decisions = key_decisions_future.result(timeout=60)
+                key_decisions = key_decisions_future.result(timeout=180)
                 print("✅ Key decisions completed")
-                timelines = timelines_future.result(timeout=60)
+                timelines = timelines_future.result(timeout=180)
                 print("✅ Timelines completed")
             except Exception as e:
                 print(f"⚠️ NLP processing timeout or error: {e}")
                 import traceback
                 traceback.print_exc()
-                # Provide fallback values
-                summary = "Summary generation failed"
-                action_items = ["Action items extraction failed"]
-                key_decisions = ["Key decisions extraction failed"]
-                timelines = ["Timeline extraction failed"]
+                # Provide fallback values that match expected data types
+                summary = "Summary generation failed due to timeout or processing error"
+                action_items = [{"task": "Action items extraction failed", "assignee": "N/A", "deadline": "N/A"}]
+                key_decisions = [{"decision": "Key decisions extraction failed", "context": "N/A"}]
+                timelines = [{"event": "Timeline extraction failed", "date": "N/A"}]
         
         # Prepare meeting data for search index
         meeting_data = {

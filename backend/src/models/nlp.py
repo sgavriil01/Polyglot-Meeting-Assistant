@@ -285,6 +285,11 @@ class NLPProcessor:
     
     def _chunk_text(self, text: str, max_chunk: int = 1000) -> List[str]:
         """Split text into chunks for processing"""
+        # For very large texts, use larger chunks and limit total processing
+        if len(text) > 20000:
+            max_chunk = 2000  # Larger chunks for big documents
+            print(f"⚠️ Large text detected ({len(text)} chars). Using larger chunks to optimize processing.")
+        
         # Split by sentences first, then group into chunks
         sentences = self._split_sentences(text)
         chunks = []
@@ -301,6 +306,11 @@ class NLPProcessor:
             else:
                 current_chunk.append(sentence.strip("."))
                 current_length += sentence_length
+        
+        # For extremely large texts, limit the number of chunks to prevent timeout
+        if len(text) > 25000 and len(chunks) > 15:
+            print(f"⚠️ Very large text ({len(text)} chars, {len(chunks)} chunks). Limiting to first 15 chunks to prevent timeout.")
+            chunks = chunks[:15]
         
         if current_chunk:
             chunks.append(". ".join(current_chunk) + ".")
