@@ -41,6 +41,7 @@ from fastapi import FastAPI, Request, File, UploadFile, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import uvicorn
 
 # Add backend src to path
@@ -53,27 +54,15 @@ from models.nlp import NLPProcessor
 from models.search import MeetingSearchEngine
 from session_manager import SessionManager
 
-# Create FastAPI app
-app = FastAPI(title="Polyglot Meeting Assistant")
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Initialize backend components
+# Initialize backend components (will be set during startup)
 asr_processor = None
 nlp_processor = None
 search_engine = None
 session_manager = None
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize backend components on startup"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown events"""
     global asr_processor, nlp_processor, search_engine, session_manager
     
     print("🚀 Initializing Polyglot Meeting Assistant...")
@@ -103,10 +92,29 @@ async def startup_event():
         api_router.session_manager = session_manager
         
         print("✅ All components initialized successfully!")
+        
     except Exception as e:
         print(f"❌ Error initializing components: {e}")
         import traceback
         traceback.print_exc()
+        raise
+    
+    yield
+    
+    # Cleanup on shutdown
+    print("🛑 Shutting down Polyglot Meeting Assistant...")
+
+# Create FastAPI app with lifespan
+app = FastAPI(title="Polyglot Meeting Assistant", lifespan=lifespan)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include API routes (router already has /api/v1 prefix)
 app.include_router(api_router)
