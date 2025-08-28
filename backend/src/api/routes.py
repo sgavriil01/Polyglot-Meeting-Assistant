@@ -278,7 +278,7 @@ async def upload_file(
         processing_time = time.time() - start_time
         print(f"⚡ Processing completed in {processing_time:.2f} seconds")
         
-        response = UploadResponse(
+        response_data = UploadResponse(
             success=True,
             message=f"File processed successfully in {processing_time:.2f}s",
             meeting_id=meeting_id,
@@ -291,10 +291,17 @@ async def upload_file(
         
         # Set session cookie
         from fastapi.responses import Response
-        response_obj = Response(content=response.json(), media_type="application/json")
-        response_obj.set_cookie(key="session_id", value=session_id, max_age=3600, httponly=True)
+        response_obj = Response(content=response_data.json(), media_type="application/json")
+        response_obj.set_cookie(
+            key="session_id", 
+            value=session_id, 
+            max_age=3600, 
+            httponly=False,  # Allow JS access for debugging
+            samesite="lax",  # Allow cross-site for HF Spaces
+            secure=False     # HTTP for local dev, HTTPS for production
+        )
         
-        return response
+        return response_obj
         
     except Exception as e:
         # Clean up temporary file if it exists
@@ -344,7 +351,14 @@ async def search_meetings(
         # Set session cookie in response
         from fastapi.responses import Response
         response_obj = Response(content=json.dumps(response_data), media_type="application/json")
-        response_obj.set_cookie(key="session_id", value=session_id, max_age=3600, httponly=True)
+        response_obj.set_cookie(
+            key="session_id", 
+            value=session_id, 
+            max_age=3600, 
+            httponly=False,  # Allow JS access for debugging
+            samesite="lax",  # Allow cross-site for HF Spaces
+            secure=False     # HTTP for local dev, HTTPS for production
+        )
         
         return response_obj
         
@@ -394,7 +408,14 @@ async def get_statistics(
         # Set session cookie in response
         from fastapi.responses import Response
         response_obj = Response(content=response_data.json(), media_type="application/json")
-        response_obj.set_cookie(key="session_id", value=session_id, max_age=3600, httponly=True)
+        response_obj.set_cookie(
+            key="session_id", 
+            value=session_id, 
+            max_age=3600, 
+            httponly=False,  # Allow JS access for debugging
+            samesite="lax",  # Allow cross-site for HF Spaces
+            secure=False     # HTTP for local dev, HTTPS for production
+        )
         
         return response_obj
         
