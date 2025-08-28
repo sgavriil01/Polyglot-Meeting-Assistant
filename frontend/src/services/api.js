@@ -5,13 +5,35 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
   ? '/api/v1' 
   : 'http://localhost:8000/api/v1';
 
+// Session management using localStorage and headers
+let sessionId = localStorage.getItem('session_id') || null;
+
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Include cookies in requests
+  withCredentials: true, // Keep for any other cookies
+});
+
+// Request interceptor to add session ID header
+api.interceptors.request.use((config) => {
+  if (sessionId) {
+    config.headers['X-Session-ID'] = sessionId;
+  }
+  return config;
+});
+
+// Response interceptor to capture session ID from headers
+api.interceptors.response.use((response) => {
+  const newSessionId = response.headers['x-session-id'];
+  if (newSessionId && newSessionId !== sessionId) {
+    sessionId = newSessionId;
+    localStorage.setItem('session_id', sessionId);
+    console.log('📝 Session ID updated:', sessionId.substring(0, 8) + '...');
+  }
+  return response;
 });
 
 // API service functions
