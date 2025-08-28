@@ -86,10 +86,11 @@ async def lifespan(app: FastAPI):
         print("✅ Session manager ready")
         
         # Set global instances in api.routes for dependency injection
-        api_router.asr_processor = asr_processor
-        api_router.nlp_processor = nlp_processor
-        api_router.search_engine = search_engine
-        api_router.session_manager = session_manager
+        from api import routes
+        routes.asr_processor = asr_processor
+        routes.nlp_processor = nlp_processor
+        routes.search_engine = search_engine
+        routes.session_manager = session_manager
         
         print("✅ All components initialized successfully!")
         
