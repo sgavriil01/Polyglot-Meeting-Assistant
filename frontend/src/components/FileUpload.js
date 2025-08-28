@@ -18,7 +18,7 @@ import {
   CloudUpload,
   Description,
   AudioFile,
-  VideoFile,
+
   CheckCircle,
   Error,
   Delete,
@@ -109,14 +109,12 @@ const FileUpload = ({ onUpload, loading = false }) => {
   const getFileIcon = (file) => {
     const type = file.type;
     if (type.startsWith('audio/')) return <AudioFile color="primary" />;
-    if (type.startsWith('video/')) return <VideoFile color="secondary" />;
     return <Description color="action" />;
   };
 
   const getFileTypeColor = (file) => {
     const type = file.type;
     if (type.startsWith('audio/')) return 'primary';
-    if (type.startsWith('video/')) return 'secondary';
     return 'default';
   };
 
@@ -165,14 +163,14 @@ const FileUpload = ({ onUpload, loading = false }) => {
             or click to browse
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Supports: Text files, Audio files, Video files
+            Supports: Text files (.txt, .md), Audio files (.mp3, .wav, .m4a, .ogg, .flac) in 100+ languages
           </Typography>
           
           <input
             id="file-input"
             type="file"
             multiple
-            accept=".txt,.md,.mp3,.wav,.mp4,.avi,.mov"
+            accept=".txt,.md,.mp3,.wav,.m4a,.ogg,.flac"
             onChange={handleFileSelect}
             style={{ display: 'none' }}
           />

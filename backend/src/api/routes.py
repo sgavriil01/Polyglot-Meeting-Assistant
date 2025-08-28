@@ -156,11 +156,12 @@ async def upload_file(
     Upload and process audio or text files
     
     Supports: mp3, wav, m4a, ogg, flac, txt, md
+    Languages: 100+ languages supported including English, Spanish, French, German, Chinese, etc.
     """
     start_time = time.time()
     
     # Validate file type
-    audio_extensions = {'.mp3', '.wav', '.m4a', '.ogg', '.flac', '.webm'}
+    audio_extensions = {'.mp3', '.wav', '.m4a', '.ogg', '.flac'}
     text_extensions = {'.txt', '.md', '.rtf'}
     allowed_extensions = audio_extensions | text_extensions
     
