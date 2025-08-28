@@ -96,10 +96,20 @@ def get_session_manager() -> SessionManager:
     return session_manager
 
 def get_or_create_session(request: Request, session_mgr: SessionManager = Depends(get_session_manager)) -> str:
-    """Get existing session ID from cookies or create new one"""
-    session_id = request.cookies.get("session_id")
+    """Get existing session ID from cookies, headers, or create new one"""
+    # Debug: Print all request info
+    print(f"🔍 Session debug:")
+    print(f"   Cookies: {dict(request.cookies)}")
+    print(f"   Headers: {dict(request.headers)}")
     
-    print(f"🔍 Session lookup - Cookie: {session_id[:8] if session_id else 'None'}...")
+    # Try to get session from multiple sources
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        session_id = request.headers.get("X-Session-ID")
+    if not session_id:
+        session_id = request.query_params.get("session_id")
+    
+    print(f"🔍 Session lookup - ID: {session_id[:8] if session_id else 'None'}...")
     
     if not session_id or not session_mgr.get_session(session_id):
         # Create new session
@@ -289,7 +299,7 @@ async def upload_file(
             language=language
         )
         
-        # Set session cookie
+        # Set session in both cookie and header
         from fastapi.responses import Response
         response_obj = Response(content=response_data.json(), media_type="application/json")
         response_obj.set_cookie(
@@ -300,6 +310,7 @@ async def upload_file(
             samesite="lax",  # Allow cross-site for HF Spaces
             secure=False     # HTTP for local dev, HTTPS for production
         )
+        response_obj.headers["X-Session-ID"] = session_id
         
         return response_obj
         
@@ -348,7 +359,7 @@ async def search_meetings(
             "results": results
         }
         
-        # Set session cookie in response
+        # Set session in both cookie and header
         from fastapi.responses import Response
         response_obj = Response(content=json.dumps(response_data), media_type="application/json")
         response_obj.set_cookie(
@@ -359,6 +370,7 @@ async def search_meetings(
             samesite="lax",  # Allow cross-site for HF Spaces
             secure=False     # HTTP for local dev, HTTPS for production
         )
+        response_obj.headers["X-Session-ID"] = session_id
         
         return response_obj
         
@@ -405,7 +417,7 @@ async def get_statistics(
         
         response_data = StatisticsResponse(**combined_stats)
         
-        # Set session cookie in response
+        # Set session in both cookie and header
         from fastapi.responses import Response
         response_obj = Response(content=response_data.json(), media_type="application/json")
         response_obj.set_cookie(
@@ -416,6 +428,7 @@ async def get_statistics(
             samesite="lax",  # Allow cross-site for HF Spaces
             secure=False     # HTTP for local dev, HTTPS for production
         )
+        response_obj.headers["X-Session-ID"] = session_id
         
         return response_obj
         

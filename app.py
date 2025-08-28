@@ -108,13 +108,14 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app with lifespan
 app = FastAPI(title="Polyglot Meeting Assistant", lifespan=lifespan)
 
-# Add CORS middleware
+# Add CORS middleware for HuggingFace Spaces
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for HF Spaces
+    allow_credentials=True,  # Allow cookies
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Session-ID"],  # Expose session header to frontend
 )
 
 # Include API routes (router already has /api/v1 prefix)
