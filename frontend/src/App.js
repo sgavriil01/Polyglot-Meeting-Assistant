@@ -74,11 +74,7 @@ function App() {
   const handleSearch = async (searchParams) => {
     setSearchLoading(true);
     try {
-      const response = await apiService.searchMeetings(
-        searchParams.query,
-        searchParams.topK,
-        searchParams.contentTypes
-      );
+      const response = await apiService.searchMeetings(searchParams);
       setSearchResults(response.results || []);
       showSnackbar(`Found ${response.total_results} results`, 'success');
     } catch (error) {
