@@ -42,6 +42,7 @@ function App() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [activeTab, setActiveTab] = useState('search');
+  const [filterRefreshTrigger, setFilterRefreshTrigger] = useState(0);
 
   // Load statistics on component mount with delay to allow backend initialization
   useEffect(() => {
@@ -92,6 +93,8 @@ function App() {
         showSnackbar(`File "${result.filename}" uploaded successfully`, 'success');
         // Reload stats after successful upload
         loadStats();
+        // Refresh filter options to include new participants
+        setFilterRefreshTrigger(prev => prev + 1);
       } else {
         throw new Error(result.message || 'Upload failed');
       }
@@ -114,7 +117,11 @@ function App() {
       case 'search':
         return (
           <Box>
-            <SearchBar onSearch={handleSearch} loading={searchLoading} />
+            <SearchBar 
+              onSearch={handleSearch} 
+              loading={searchLoading} 
+              refreshTrigger={filterRefreshTrigger}
+            />
             <SearchResults 
               results={searchResults} 
               loading={searchLoading} 
