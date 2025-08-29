@@ -19,7 +19,7 @@ import {
 import { Search, Clear, FilterList, DateRange, People } from '@mui/icons-material';
 import apiService from '../services/api';
 
-const SearchBar = ({ onSearch, loading = false }) => {
+const SearchBar = ({ onSearch, loading = false, refreshTrigger = 0 }) => {
   const [query, setQuery] = useState('');
   const [contentType, setContentType] = useState('all');
   const [topK, setTopK] = useState(10);
@@ -34,21 +34,28 @@ const SearchBar = ({ onSearch, loading = false }) => {
   // Filter options from API
   const [availableParticipants, setAvailableParticipants] = useState([]);
   const [dateRange, setDateRange] = useState({ earliest: '', latest: '' });
+  const [filtersLoading, setFiltersLoading] = useState(true);
 
   // Load filter options when component mounts
   useEffect(() => {
     const loadFilterOptions = async () => {
       try {
+        setFiltersLoading(true);
         const filters = await apiService.getSearchFilters();
-        setAvailableParticipants(filters.participants);
-        setDateRange(filters.date_range);
+        setAvailableParticipants(filters.participants || []);
+        setDateRange(filters.date_range || { earliest: '', latest: '' });
       } catch (error) {
         console.error('Failed to load filter options:', error);
+        // Set empty defaults on error
+        setAvailableParticipants([]);
+        setDateRange({ earliest: '', latest: '' });
+      } finally {
+        setFiltersLoading(false);
       }
     };
     
     loadFilterOptions();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleSearch = () => {
     if (query.trim()) {
@@ -162,11 +169,19 @@ const SearchBar = ({ onSearch, loading = false }) => {
                 options={availableParticipants}
                 value={selectedParticipants}
                 onChange={(e, newValue) => setSelectedParticipants(newValue)}
+                loading={filtersLoading}
+                disabled={filtersLoading}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Participants"
-                    placeholder="Select participants..."
+                    placeholder={
+                      filtersLoading 
+                        ? "Loading participants..." 
+                        : availableParticipants.length === 0 
+                          ? "No participants found - upload meetings first"
+                          : "Select participants..."
+                    }
                   />
                 )}
                 renderTags={(tagValue, getTagProps) =>
@@ -178,6 +193,11 @@ const SearchBar = ({ onSearch, loading = false }) => {
                       icon={<People />}
                     />
                   ))
+                }
+                noOptionsText={
+                  filtersLoading 
+                    ? "Loading participants..." 
+                    : "No participants found - upload meetings to see participants here"
                 }
                 sx={{ minWidth: 250 }}
               />
