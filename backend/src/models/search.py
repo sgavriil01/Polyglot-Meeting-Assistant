@@ -324,14 +324,20 @@ class MeetingSearchEngine:
         return chunks
     
     @timing_decorator
-    def search(self, query: str, top_k: int = 10, content_types: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    def search(self, query: str, top_k: int = 10, content_types: Optional[List[str]] = None, 
+               date_from: Optional[str] = None, date_to: Optional[str] = None,
+               participants: Optional[List[str]] = None, min_relevance: Optional[float] = None) -> List[Dict[str, Any]]:
         """
-        Search for relevant meeting content
+        Search for relevant meeting content with advanced filtering
         
         Args:
             query: Search query
             top_k: Number of top results to return
             content_types: Filter by content types (transcript, summary, action_item, decision, timeline)
+            date_from: Filter meetings from this date (ISO format)
+            date_to: Filter meetings to this date (ISO format)
+            participants: Filter by participant names
+            min_relevance: Minimum relevance score (0.0 to 1.0)
             
         Returns:
             List of search results with metadata and relevance scores
@@ -363,6 +369,10 @@ class MeetingSearchEngine:
                 
                 # Apply content type filter
                 if content_types and metadata['content_type'] not in content_types:
+                    continue
+                
+                # Apply advanced filters
+                if not self._passes_advanced_filters(metadata, score, date_from, date_to, participants, min_relevance):
                     continue
                 
                 # Create result
@@ -428,6 +438,95 @@ class MeetingSearchEngine:
             snippet = snippet + "..."
         
         return snippet.strip()
+    
+    def _passes_advanced_filters(self, metadata: Dict[str, Any], score: float, 
+                               date_from: Optional[str], date_to: Optional[str],
+                               participants: Optional[List[str]], min_relevance: Optional[float]) -> bool:
+        """
+        Check if a search result passes all advanced filters
+        
+        Args:
+            metadata: Document metadata
+            score: Relevance score
+            date_from: Start date filter
+            date_to: End date filter
+            participants: Participant filter
+            min_relevance: Minimum relevance filter
+            
+        Returns:
+            True if result passes all filters
+        """
+        from datetime import datetime
+        
+        # Apply relevance filter
+        if min_relevance is not None and score < min_relevance:
+            return False
+        
+        # Apply date filters
+        if date_from or date_to:
+            try:
+                meeting_date = datetime.fromisoformat(metadata['meeting_date'].replace('Z', '+00:00'))
+                
+                if date_from:
+                    filter_date_from = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
+                    if meeting_date < filter_date_from:
+                        return False
+                
+                if date_to:
+                    filter_date_to = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+                    if meeting_date > filter_date_to:
+                        return False
+            except (ValueError, KeyError):
+                # If date parsing fails, include the result (don't exclude due to bad data)
+                pass
+        
+        # Apply participants filter
+        if participants:
+            meeting_participants = metadata.get('participants', [])
+            # Check if any of the filtered participants are in the meeting
+            if not any(participant in meeting_participants for participant in participants):
+                return False
+        
+        return True
+    
+    def get_all_participants(self) -> List[str]:
+        """
+        Get all unique participants across all meetings
+        
+        Returns:
+            List of unique participant names
+        """
+        participants = set()
+        for metadata in self.metadata:
+            meeting_participants = metadata.get('participants', [])
+            participants.update(meeting_participants)
+        
+        return sorted(list(participants))
+    
+    def get_date_range(self) -> Dict[str, str]:
+        """
+        Get the date range of all indexed meetings
+        
+        Returns:
+            Dictionary with 'earliest' and 'latest' dates
+        """
+        if not self.metadata:
+            return {'earliest': '', 'latest': ''}
+        
+        dates = []
+        for metadata in self.metadata:
+            try:
+                date_str = metadata.get('meeting_date', '')
+                if date_str:
+                    dates.append(date_str)
+            except:
+                continue
+        
+        if not dates:
+            return {'earliest': '', 'latest': ''}
+        
+        dates.sort()
+        return {'earliest': dates[0], 'latest': dates[-1]}
     
     def search_by_meeting_id(self, meeting_id: str) -> List[Dict[str, Any]]:
         """

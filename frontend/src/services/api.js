@@ -51,11 +51,15 @@ export const apiService = {
   },
 
   // Search meetings
-  searchMeetings: async (query, topK = 10, contentTypes = null) => {
+  searchMeetings: async (searchParams) => {
     const response = await api.post('/search', {
-      query,
-      top_k: topK,
-      content_types: contentTypes,
+      query: searchParams.query,
+      top_k: searchParams.topK || 10,
+      content_types: searchParams.contentTypes,
+      date_from: searchParams.dateFrom,
+      date_to: searchParams.dateTo,
+      participants: searchParams.participants,
+      min_relevance: searchParams.minRelevance,
     });
     return response.data;
   },
@@ -84,6 +88,12 @@ export const apiService = {
     const response = await api.get('/export', {
       params: { q: query, format },
     });
+    return response.data;
+  },
+
+  // Get search filter options
+  getSearchFilters: async () => {
+    const response = await api.get('/search/filters');
     return response.data;
   },
 };

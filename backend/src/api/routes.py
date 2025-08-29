@@ -29,6 +29,10 @@ class SearchRequest(BaseModel):
     query: str
     top_k: int = 10
     content_types: Optional[List[str]] = None
+    date_from: Optional[str] = None
+    date_to: Optional[str] = None
+    participants: Optional[List[str]] = None
+    min_relevance: Optional[float] = None
 
 class SearchResult(BaseModel):
     meeting_id: str
@@ -350,7 +354,11 @@ async def search_meetings(
         results = session_search.search(
             query=search_request.query,
             top_k=search_request.top_k,
-            content_types=search_request.content_types
+            content_types=search_request.content_types,
+            date_from=search_request.date_from,
+            date_to=search_request.date_to,
+            participants=search_request.participants,
+            min_relevance=search_request.min_relevance
         )
         
         response_data = {
@@ -378,6 +386,41 @@ async def search_meetings(
     except Exception as e:
         print(f"❌ Search error: {e}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+@router.get("/search/filters")
+async def get_search_filters(
+    request: Request,
+    session_mgr: SessionManager = Depends(get_session_manager)
+):
+    """
+    Get available filter options for search
+    """
+    try:
+        # Get session ID
+        session_id = get_or_create_session(request, session_mgr)
+        
+        # Get session-specific search engine
+        session_search = session_mgr.get_or_create_search_engine(session_id)
+        
+        if not session_search:
+            return {
+                "participants": [],
+                "date_range": {"earliest": "", "latest": ""},
+                "content_types": ["transcript", "summary", "action_item", "decision", "timeline"]
+            }
+        
+        participants = session_search.get_all_participants()
+        date_range = session_search.get_date_range()
+        
+        return {
+            "participants": participants,
+            "date_range": date_range,
+            "content_types": ["transcript", "summary", "action_item", "decision", "timeline"]
+        }
+        
+    except Exception as e:
+        print(f"❌ Error getting search filters: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get filters: {str(e)}")
 
 @router.get("/statistics", response_model=StatisticsResponse)
 async def get_statistics(
