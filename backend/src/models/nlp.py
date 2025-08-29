@@ -601,21 +601,8 @@ class NLPProcessor:
         return timelines
     
     def extract_participants(self, text: str) -> List[str]:
-        """
-        Extract meeting participants using state-of-the-art NER (Named Entity Recognition)
-        
-        Uses HuggingFace's transformer-based NER model for production-grade person detection.
-        This approach:
-        - Handles ANY text format (speaker, narrative, mixed)
-        - Leverages transformer attention mechanisms
-        - Trained on millions of examples (CoNLL-2003 dataset)
-        - Provides confidence scores for quality filtering
-        - Scales to any meeting length with intelligent chunking
-        
-        Returns:
-            List of participant names sorted by confidence and frequency
-        """
-        print("🤖 Running transformer-based NER for participant extraction...")
+        """Extract meeting participants using NER (Named Entity Recognition)"""
+        print("🤖 Running NER for participant extraction...")
         
         try:
             participants = self._extract_participants_with_ner(text)
@@ -626,160 +613,84 @@ class NLPProcessor:
             
         except Exception as e:
             print(f"❌ NER extraction failed: {e}")
-            print("💡 Tip: Ensure transformers library is installed and model can be downloaded")
-            return []  # Fail gracefully - no fallback needed
-    
-
+            print("💡 Falling back to regex extraction...")
+            return self._extract_participants_regex_fallback(text)
     
     def _extract_participants_with_ner(self, text: str) -> Set[str]:
-        """
-        Production-grade NER extraction with advanced post-processing
-        
-        Features:
-        - Transformer-based entity recognition (BERT-Large)
-        - Confidence-based filtering (removes low-quality predictions)
-        - Smart chunking for long documents
-        - Frequency analysis for ranking
-        - Advanced deduplication and cleaning
-        """
+        """Extract participants using HuggingFace NER model"""
         try:
             # Initialize NER pipeline (cached after first call)
             if not hasattr(self, '_ner_pipeline'):
                 from transformers import pipeline
-                print("📥 Loading BERT-Large NER model (dbmdz/bert-large-cased-finetuned-conll03-english)...")
+                print("📥 Loading NER model...")
                 self._ner_pipeline = pipeline(
                     "ner", 
                     model="dbmdz/bert-large-cased-finetuned-conll03-english",
-                    aggregation_strategy="simple",  # Combines sub-tokens intelligently
+                    aggregation_strategy="simple",
                     device=self.device
                 )
-                print("✅ NER model loaded successfully")
+                print("✅ NER model loaded")
             
-            # Smart chunking preserves sentence boundaries
-            chunks = self._chunk_text_for_ner(text, max_tokens=400)
-            print(f"📝 Processing {len(chunks)} text chunks...")
+            # Simple chunking for long texts
+            chunks = self._chunk_text_simple(text, max_chars=2000)
+            participants = set()
             
-            # Track participants with confidence and frequency
-            participant_scores = {}  # {name: [confidence_scores]}
-            
-            for i, chunk in enumerate(chunks):
+            for chunk in chunks:
                 entities = self._ner_pipeline(chunk)
                 
                 for entity in entities:
-                    if entity['entity_group'] == 'PER' and entity['score'] > 0.85:  # High confidence threshold
-                        name = self._clean_ner_name(entity['word'])
+                    if entity['entity_group'] == 'PER' and entity['score'] > 0.85:
+                        name = entity['word'].strip()
+                        name = name.replace('##', '').replace(' ##', '')
                         
-                        if self._is_valid_person_name(name):
-                            if name not in participant_scores:
-                                participant_scores[name] = []
-                            participant_scores[name].append(entity['score'])
+                        if self._is_valid_name(name):
+                            participants.add(name)
             
-            # Advanced participant ranking and selection
-            final_participants = self._rank_and_select_participants(participant_scores)
-            
-            print(f"🎯 Final participant ranking completed")
-            return final_participants
+            return participants
             
         except Exception as e:
-            print(f"❌ NER extraction error: {e}")
-            raise  # Let the parent method handle the error
+            print(f"❌ NER error: {e}")
+            raise
     
-    def _clean_ner_name(self, raw_name: str) -> str:
-        """Clean NER output artifacts and normalize names"""
-        # Remove BERT tokenization artifacts
-        name = raw_name.replace('##', '').replace(' ##', '')
+    def _chunk_text_simple(self, text: str, max_chars: int = 2000) -> List[str]:
+        """Simple text chunking"""
+        if len(text) <= max_chars:
+            return [text]
         
-        # Handle common NER artifacts
-        name = name.replace('[CLS]', '').replace('[SEP]', '')
-        
-        # Normalize whitespace
-        name = ' '.join(name.split())
-        
-        # Fix common casing issues from NER
-        if name.isupper() or name.islower():
-            name = name.title()
-        
-        return name.strip()
-    
-    def _rank_and_select_participants(self, participant_scores: Dict[str, List[float]]) -> Set[str]:
-        """
-        Advanced participant ranking using confidence and frequency
-        
-        Scoring factors:
-        - Average confidence score
-        - Frequency of mentions
-        - Name completeness (full names preferred over first names)
-        """
-        scored_participants = []
-        
-        for name, scores in participant_scores.items():
-            avg_confidence = sum(scores) / len(scores)
-            frequency = len(scores)
-            completeness_bonus = 0.1 if ' ' in name else 0  # Prefer full names
-            
-            # Composite score: confidence × frequency + completeness bonus
-            composite_score = (avg_confidence * frequency) + completeness_bonus
-            
-            scored_participants.append((name, composite_score, avg_confidence, frequency))
-        
-        # Sort by composite score (highest first)
-        scored_participants.sort(key=lambda x: x[1], reverse=True)
-        
-        # Deduplicate: remove first names if full name exists
-        final_names = set()
-        for name, score, conf, freq in scored_participants:
-            # Check if this is a first name that has a corresponding full name
-            is_first_name_of_existing = any(
-                name != existing and name in existing.split() 
-                for existing in final_names
-            )
-            
-            if not is_first_name_of_existing:
-                final_names.add(name)
-                print(f"👤 {name}: confidence={conf:.3f}, frequency={freq}, score={score:.3f}")
-        
-        return final_names
-    
-    def _chunk_text_for_ner(self, text: str, max_tokens: int = 500) -> List[str]:
-        """Chunk text for NER processing to avoid memory issues"""
-        # Simple sentence-based chunking
-        sentences = text.split('. ')
         chunks = []
-        current_chunk = ""
-        
-        for sentence in sentences:
-            # Rough token estimate (words * 1.3)
-            estimated_tokens = len((current_chunk + sentence).split()) * 1.3
-            
-            if estimated_tokens > max_tokens and current_chunk:
-                chunks.append(current_chunk.strip())
-                current_chunk = sentence
-            else:
-                current_chunk += sentence + ". "
-        
-        if current_chunk.strip():
-            chunks.append(current_chunk.strip())
-        
+        for i in range(0, len(text), max_chars):
+            chunks.append(text[i:i + max_chars])
         return chunks
     
-    def _is_valid_person_name(self, name: str) -> bool:
-        """Validate if detected entity is likely a real person name"""
+    def _is_valid_name(self, name: str) -> bool:
+        """Check if extracted entity is a valid person name"""
         if not name or len(name) < 2:
             return False
-            
-        # Remove common NER false positives
-        false_positives = {
-            'API', 'CEO', 'CTO', 'CFO', 'VP', 'UI', 'UX', 'AI', 'ML', 'AWS', 'API',
-            'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-        }
         
-        # Must start with capital, contain only letters/spaces, reasonable length
+        # Basic validation
         return (name[0].isupper() and 
                 all(c.isalpha() or c.isspace() for c in name) and
-                2 <= len(name) <= 25 and
-                name not in false_positives)
+                2 <= len(name) <= 25)
+    
+    def _extract_participants_regex_fallback(self, text: str) -> List[str]:
+        """Fallback regex-based participant extraction"""
+        import re
+        participants = set()
+        
+        # Speaker pattern: "NAME:" at start of line
+        speaker_pattern = r'^([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+)*):'
+        speakers = re.findall(speaker_pattern, text, re.MULTILINE)
+        participants.update(speakers)
+        
+        # Clean and validate
+        valid_participants = []
+        for name in participants:
+            if (3 <= len(name) <= 25 and 
+                name.isalpha() and
+                name[0].isupper()):
+                valid_participants.append(name)
+        
+        return sorted(list(set(valid_participants)))[:8]
     
     def _get_sentence_containing(self, text: str, position: int) -> str:
         """Get the sentence containing a specific character position"""
