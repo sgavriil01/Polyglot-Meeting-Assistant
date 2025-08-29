@@ -239,6 +239,7 @@ async def upload_file(
             action_items_future = executor.submit(nlp.extract_action_items, transcript_text)
             key_decisions_future = executor.submit(nlp.extract_key_decisions, transcript_text)
             timelines_future = executor.submit(nlp.extract_timelines, transcript_text)
+            participants_future = executor.submit(nlp.extract_participants, transcript_text)
             
             # Wait for all tasks to complete with timeout (180 seconds for large files)
             try:
@@ -251,6 +252,8 @@ async def upload_file(
                 print("✅ Key decisions completed")
                 timelines = timelines_future.result(timeout=180)
                 print("✅ Timelines completed")
+                participants = participants_future.result(timeout=180)
+                print("✅ Participants completed")
             except Exception as e:
                 print(f"⚠️ NLP processing timeout or error: {e}")
                 import traceback
@@ -260,6 +263,7 @@ async def upload_file(
                 action_items = [{"task": "Action items extraction failed", "assignee": "N/A", "deadline": "N/A"}]
                 key_decisions = [{"decision": "Key decisions extraction failed", "context": "N/A"}]
                 timelines = [{"event": "Timeline extraction failed", "date": "N/A"}]
+                participants = []
         
         # Prepare meeting data for search index
         meeting_data = {
@@ -271,7 +275,7 @@ async def upload_file(
             "action_items": action_items,
             "key_decisions": key_decisions,
             "timelines": timelines,
-            "participants": [],  # TODO: Add speaker diarization
+            "participants": participants,
             "filename": file.filename,
             "language": language,
             "duration": duration
