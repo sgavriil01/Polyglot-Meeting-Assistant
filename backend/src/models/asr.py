@@ -5,6 +5,7 @@ import logging
 import os
 import time
 import functools
+import threading
 
 def timing_decorator(func):
     """Simple timing decorator"""
@@ -18,26 +19,51 @@ def timing_decorator(func):
     return wrapper
 
 class WhisperASR:
-    """Whisper-based Automatic Speech Recognition"""
+    """Whisper-based Automatic Speech Recognition with model caching"""
+    
+    # Class-level variables for singleton pattern
+    _instance = None
+    _lock = threading.Lock()
+    _model_loaded = False
+    
+    def __new__(cls, model_size: str = "base"):
+        """Singleton pattern to ensure model is loaded only once"""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(WhisperASR, cls).__new__(cls)
+        return cls._instance
     
     def __init__(self, model_size: str = "base"):
         """
-        Initialize Whisper ASR model
+        Initialize Whisper ASR model (only once due to singleton pattern)
         
         Args:
             model_size: Model size ('tiny', 'base', 'small', 'medium', 'large')
         """
+        # Only initialize once
+        if hasattr(self, '_initialized'):
+            return
+            
         self.model_size = model_size
         self.model = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.load_model()
+        
+        with self._lock:
+            if not self._model_loaded:
+                self.load_model()
+                self._model_loaded = True
+                
+        self._initialized = True
     
     def load_model(self):
-        """Load Whisper model"""
+        """Load Whisper model (cached singleton)"""
         try:
-            logging.info(f"Loading Whisper {self.model_size} model on {self.device}")
+            logging.info(f"🚀 CACHED MODEL LOADING: Loading Whisper {self.model_size} model on {self.device}")
+            model_start_time = time.time()
             self.model = whisper.load_model(self.model_size, device=self.device)
-            logging.info(f"Successfully loaded Whisper {self.model_size} model")
+            model_load_time = time.time() - model_start_time
+            logging.info(f"✅ WHISPER MODEL CACHED in {model_load_time:.2f}s - Future requests will be instant!")
         except Exception as e:
             logging.error(f"Failed to load Whisper model: {e}")
             raise
