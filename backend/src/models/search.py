@@ -47,7 +47,11 @@ class MeetingSearchEngine:
         self.model_name = model_name
         # Use data directory for search index (persistent storage)
         if index_path is None:
-            data_dir = os.environ.get("SEARCH_INDEX_DIR", "/app/data/search_index")
+            # Use local path for development, Docker path for production
+            if os.path.exists("/app"):  # Docker environment
+                data_dir = os.environ.get("SEARCH_INDEX_DIR", "/app/data/search_index")
+            else:  # Local development
+                data_dir = os.environ.get("SEARCH_INDEX_DIR", "data/search_index")
             self.index_path = data_dir
         else:
             self.index_path = index_path
@@ -242,11 +246,19 @@ class MeetingSearchEngine:
         # Full transcript (chunked if too long)
         transcript = meeting_data.get('transcript', '')
         if transcript:
-            # Split long transcripts into chunks
-            chunks = self._chunk_text(transcript, max_length=500)
-            for chunk in chunks:
-                texts.append(chunk)
+            # OPTIMIZATION: Smart chunking for better search quality and performance
+            text_length = len(transcript)
+            if text_length <= 2000:
+                # Small transcript: no chunking needed
+                texts.append(transcript)
                 types.append('transcript')
+            else:
+                # Large transcript: smart chunking with overlap
+                chunks = self._smart_chunk_text(transcript, target_chunks=8, overlap=300)
+                print(f"🔍 Smart search chunking: {text_length} chars → {len(chunks)} chunks (vs {text_length//500} old chunks)")
+                for chunk in chunks:
+                    texts.append(chunk)
+                    types.append('transcript')
         
         # Summary
         summary = meeting_data.get('summary', '')
@@ -322,6 +334,54 @@ class MeetingSearchEngine:
             chunks.append(current_chunk.strip())
         
         return chunks
+    
+    def _smart_chunk_text(self, text: str, target_chunks: int = 8, overlap: int = 300) -> List[str]:
+        """
+        Smart text chunking for search indexing with overlap and semantic boundaries
+        
+        Args:
+            text: Text to chunk
+            target_chunks: Target number of chunks
+            overlap: Character overlap between chunks
+            
+        Returns:
+            List of text chunks
+        """
+        text_length = len(text)
+        chunk_size = text_length // target_chunks
+        
+        # Ensure minimum chunk size for meaningful search
+        chunk_size = max(chunk_size, 800)
+        
+        # Split by sentences for better semantic boundaries
+        sentences = text.split('. ')
+        chunks = []
+        current_chunk = []
+        current_length = 0
+        
+        for sentence in sentences:
+            sentence_length = len(sentence)
+            
+            if current_length + sentence_length > chunk_size and current_chunk:
+                # Add overlap from previous chunk for context preservation
+                if chunks and overlap > 0:
+                    prev_chunk = chunks[-1]
+                    overlap_start = max(0, len(prev_chunk) - overlap)
+                    overlap_text = prev_chunk[overlap_start:]
+                    current_chunk.insert(0, overlap_text)
+                
+                chunks.append(". ".join(current_chunk) + ".")
+                current_chunk = [sentence.strip(".")]
+                current_length = sentence_length
+            else:
+                current_chunk.append(sentence.strip("."))
+                current_length += sentence_length
+        
+        if current_chunk:
+            chunks.append(". ".join(current_chunk) + ".")
+        
+        # Limit to target number and ensure quality
+        return chunks[:target_chunks]
     
     @timing_decorator
     def search(self, query: str, top_k: int = 10, content_types: Optional[List[str]] = None, 
