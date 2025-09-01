@@ -5,6 +5,7 @@ import re
 import logging
 import time
 import functools
+import threading
 
 def timing_decorator(func):
     """Simple timing decorator"""
@@ -18,28 +19,53 @@ def timing_decorator(func):
     return wrapper
 
 class NLPProcessor:
-    """Natural Language Processing pipeline for meeting analysis"""
+    """Natural Language Processing pipeline for meeting analysis with model caching"""
+    
+    # Class-level variables for singleton pattern
+    _instance = None
+    _lock = threading.Lock()
+    _models_loaded = False
+    
+    def __new__(cls, device: str = None):
+        """Singleton pattern to ensure models are loaded only once"""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(NLPProcessor, cls).__new__(cls)
+        return cls._instance
     
     def __init__(self, device: str = None):
         """
-        Initialize NLP models
+        Initialize NLP models (only once due to singleton pattern)
         
         Args:
             device: Device to run models on ('cpu', 'cuda', or None for auto)
         """
+        # Only initialize once
+        if hasattr(self, '_initialized'):
+            return
+            
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.summarizer = None
         self.classifier = None
         self.embedder = None
-        self.setup_models()
+        self._ner_pipeline = None  # Cache for NER model
+        
+        with self._lock:
+            if not self._models_loaded:
+                self.setup_models()
+                self._models_loaded = True
+                
+        self._initialized = True
     
     def setup_models(self):
-        """Initialize all NLP models"""
+        """Initialize all NLP models (cached singleton)"""
         try:
-            logging.info(f"Loading NLP models on {self.device}")
+            logging.info(f"🚀 CACHED MODEL LOADING: Loading NLP models on {self.device}")
+            model_start_time = time.time()
             
             # Summarization - using T5-small for better sentence completion
-            logging.info("Loading summarization model...")
+            logging.info("📥 Loading summarization model...")
             self.summarizer = pipeline(
                 "summarization",
                 model="t5-small",  
@@ -63,7 +89,8 @@ class NLPProcessor:
                 device=0 if self.device == "cuda" else -1
             )
             
-            logging.info("All NLP models loaded successfully")
+            model_load_time = time.time() - model_start_time
+            logging.info(f"✅ ALL NLP MODELS CACHED in {model_load_time:.2f}s - Future requests will be instant!")
             
         except Exception as e:
             logging.error(f"Failed to load NLP models: {e}")
@@ -619,17 +646,19 @@ class NLPProcessor:
     def _extract_participants_with_ner(self, text: str) -> Set[str]:
         """Extract participants using HuggingFace NER model"""
         try:
-            # Initialize NER pipeline (cached after first call)
-            if not hasattr(self, '_ner_pipeline'):
-                from transformers import pipeline
-                print("📥 Loading NER model...")
-                self._ner_pipeline = pipeline(
-                    "ner", 
-                    model="dbmdz/bert-large-cased-finetuned-conll03-english",
-                    aggregation_strategy="simple",
-                    device=self.device
-                )
-                print("✅ NER model loaded")
+            # Initialize NER pipeline (cached after first call) - thread-safe
+            if self._ner_pipeline is None:
+                with self._lock:
+                    if self._ner_pipeline is None:
+                        from transformers import pipeline
+                        print("📥 Loading NER model...")
+                        self._ner_pipeline = pipeline(
+                            "ner", 
+                            model="dbmdz/bert-large-cased-finetuned-conll03-english",
+                            aggregation_strategy="simple",
+                            device=self.device
+                        )
+                        print("✅ NER model loaded")
             
             # Simple chunking for long texts
             chunks = self._chunk_text_simple(text, max_chars=2000)
