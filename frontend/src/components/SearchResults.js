@@ -109,7 +109,91 @@ const SearchResults = ({ results, loading = false, query = '' }) => {
 
   // Export functions
   const exportToPDF = () => {
-    // Create PDF content
+    import('jspdf').then(({ jsPDF }) => {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      const margin = 20;
+      const maxLineWidth = pageWidth - 2 * margin;
+      let yPosition = 30;
+
+      // Helper function to add text with word wrapping
+      const addWrappedText = (text, x, y, maxWidth, lineHeight = 6) => {
+        const lines = doc.splitTextToSize(text, maxWidth);
+        doc.text(lines, x, y);
+        return y + (lines.length * lineHeight);
+      };
+
+      // Header
+      doc.setFontSize(20);
+      doc.setFont(undefined, 'bold');
+      doc.text('Search Results Report', margin, yPosition);
+      yPosition += 15;
+
+      // Metadata
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'normal');
+      doc.text(`Query: "${query}"`, margin, yPosition);
+      yPosition += 8;
+      doc.text(`Generated: ${new Date().toLocaleString()}`, margin, yPosition);
+      yPosition += 8;
+      doc.text(`Total Results: ${results.length}`, margin, yPosition);
+      yPosition += 15;
+
+      // Results
+      results.forEach((result, index) => {
+        // Check if we need a new page
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 30;
+        }
+
+        // Result header
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        yPosition = addWrappedText(`${index + 1}. ${result.meeting_title}`, margin, yPosition, maxLineWidth, 8);
+        yPosition += 5;
+
+        // Result details
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Date: ${formatDate(result.meeting_date)}`, margin, yPosition);
+        yPosition += 5;
+        doc.text(`Type: ${result.content_type.replace('_', ' ').toUpperCase()}`, margin, yPosition);
+        yPosition += 5;
+        doc.text(`Relevance: ${(result.relevance_score * 100).toFixed(1)}%`, margin, yPosition);
+        yPosition += 5;
+
+        if (result.participants?.length) {
+          yPosition = addWrappedText(`Participants: ${result.participants.join(', ')}`, margin, yPosition, maxLineWidth);
+          yPosition += 5;
+        }
+
+        // Content
+        doc.setFont(undefined, 'bold');
+        doc.text('Content:', margin, yPosition);
+        yPosition += 5;
+        doc.setFont(undefined, 'normal');
+        yPosition = addWrappedText(result.snippet, margin, yPosition, maxLineWidth);
+        yPosition += 10;
+
+        // Separator line
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 10;
+      });
+
+      // Save the PDF
+      const filename = `search-results-${query.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+    }).catch(error => {
+      console.error('Error generating PDF:', error);
+      // Fallback to text export
+      exportToText();
+    });
+  };
+
+  const exportToText = () => {
+    // Fallback text export if PDF fails
     const content = `
 SEARCH RESULTS REPORT
 Query: "${query}"
@@ -130,7 +214,6 @@ ${'='.repeat(80)}
 `).join('')}
     `;
 
-    // Create and download PDF
     const blob = new Blob([content], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -202,13 +285,13 @@ ${'='.repeat(80)}
                 CSV
               </Button>
             </Tooltip>
-            <Tooltip title="Download as Text Report">
+            <Tooltip title="Download as PDF Report">
               <Button
                 startIcon={<PictureAsPdf />}
                 onClick={exportToPDF}
                 sx={{ minWidth: 'auto' }}
               >
-                Report
+                PDF
               </Button>
             </Tooltip>
             <Tooltip title="Copy all to clipboard">
