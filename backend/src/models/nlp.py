@@ -113,43 +113,66 @@ class NLPProcessor:
             return "Text too short to summarize"
         
         try:
-            # Split long text into chunks for better processing
-            chunks = self._chunk_text(text, max_chunk=512)  # Smaller chunks for distilbart
-            summaries = []
+            # OPTIMIZATION: Smart processing based on text length
+            text_length = len(text)
             
-            for chunk in chunks:
-                chunk_clean = chunk.strip()
-                if len(chunk_clean) > 50:  # Skip very short chunks
-                    # Calculate appropriate lengths
-                    input_length = len(chunk_clean.split())
-                    chunk_max = min(max_length, max(30, input_length // 3))
-                    chunk_min = min(min_length, max(10, chunk_max // 3))
-                    
-                    if input_length > 15:  # Only summarize if enough content
-                        summary = self.summarizer(
-                            chunk_clean, 
-                            max_length=chunk_max, 
-                            min_length=chunk_min,
-                            do_sample=False,
-                            truncation=True,
-                            clean_up_tokenization_spaces=True
-                        )[0]['summary_text']
-                        summaries.append(summary.strip())
-            
-            final_summary = " ".join(summaries)
-            
-            # If we have multiple chunk summaries, summarize them again
-            if len(summaries) > 1 and len(final_summary) > max_length * 2:
-                final_summary = self.summarizer(
-                    final_summary,
-                    max_length=max_length,
+            if text_length <= 2000:
+                # Small text: direct summarization (no chunking)
+                print(f"📝 Direct summarization for small text ({text_length} chars)")
+                summary = self.summarizer(
+                    text,
+                    max_new_tokens=max_length,  # Use max_new_tokens to avoid warnings
                     min_length=min_length,
                     do_sample=False,
                     truncation=True,
                     clean_up_tokenization_spaces=True
                 )[0]['summary_text']
-            
-            return final_summary
+                return summary.strip()
+                
+            elif text_length <= 8000:
+                # Medium text: 2-3 smart chunks with overlap
+                print(f"📝 Smart chunking for medium text ({text_length} chars)")
+                chunks = self._smart_chunk_text(text, target_chunks=3, overlap=200)
+                summaries = []
+                
+                for i, chunk in enumerate(chunks):
+                    print(f"   Processing chunk {i+1}/{len(chunks)}")
+                    summary = self.summarizer(
+                        chunk,
+                        max_new_tokens=max_length // len(chunks) + 50,
+                        min_length=min_length // len(chunks),
+                        do_sample=False,
+                        truncation=True,
+                        clean_up_tokenization_spaces=True
+                    )[0]['summary_text']
+                    summaries.append(summary.strip())
+                
+                # Combine and final summarize
+                combined = " ".join(summaries)
+                final_summary = self.summarizer(
+                    combined,
+                    max_new_tokens=max_length,
+                    min_length=min_length,
+                    do_sample=False,
+                    truncation=True,
+                    clean_up_tokenization_spaces=True
+                )[0]['summary_text']
+                return final_summary.strip()
+                
+            else:
+                # Large text: Extract key sections and summarize
+                print(f"📝 Key section extraction for large text ({text_length} chars)")
+                key_sections = self._extract_key_sections(text, target_length=4000)
+                
+                summary = self.summarizer(
+                    key_sections,
+                    max_new_tokens=max_length,
+                    min_length=min_length,
+                    do_sample=False,
+                    truncation=True,
+                    clean_up_tokenization_spaces=True
+                )[0]['summary_text']
+                return summary.strip()
             
         except Exception as e:
             logging.error(f"Summarization failed: {e}")
@@ -344,6 +367,89 @@ class NLPProcessor:
         
         return chunks
     
+    def _smart_chunk_text(self, text: str, target_chunks: int = 3, overlap: int = 200) -> List[str]:
+        """Smart text chunking with overlap and semantic boundaries"""
+        text_length = len(text)
+        chunk_size = text_length // target_chunks
+        
+        # Ensure minimum chunk size
+        chunk_size = max(chunk_size, 1000)
+        
+        sentences = self._split_sentences(text)
+        chunks = []
+        current_chunk = []
+        current_length = 0
+        
+        for sentence in sentences:
+            sentence_length = len(sentence)
+            
+            if current_length + sentence_length > chunk_size and current_chunk:
+                # Add overlap from previous chunk
+                if chunks and overlap > 0:
+                    prev_sentences = chunks[-1].split('. ')[-2:]  # Get last 2 sentences
+                    current_chunk = prev_sentences + current_chunk
+                
+                chunks.append(". ".join(current_chunk) + ".")
+                current_chunk = [sentence.strip(".")]
+                current_length = sentence_length
+            else:
+                current_chunk.append(sentence.strip("."))
+                current_length += sentence_length
+        
+        if current_chunk:
+            chunks.append(". ".join(current_chunk) + ".")
+        
+        return chunks[:target_chunks]  # Limit to target number
+    
+    def _extract_key_sections(self, text: str, target_length: int = 4000) -> str:
+        """Extract most important sections from large text"""
+        sentences = self._split_sentences(text)
+        
+        # Score sentences by keyword density and position
+        scored_sentences = []
+        important_keywords = [
+            'decision', 'action', 'deadline', 'responsible', 'meeting', 'project',
+            'timeline', 'budget', 'strategy', 'plan', 'next steps', 'follow up',
+            'agreed', 'concluded', 'resolved', 'approved', 'assigned'
+        ]
+        
+        for i, sentence in enumerate(sentences):
+            score = 0
+            sentence_lower = sentence.lower()
+            
+            # Keyword scoring
+            for keyword in important_keywords:
+                if keyword in sentence_lower:
+                    score += 2
+            
+            # Position scoring (beginning and end are often important)
+            if i < len(sentences) * 0.2:  # First 20%
+                score += 1
+            elif i > len(sentences) * 0.8:  # Last 20%
+                score += 1
+                
+            # Length scoring (not too short, not too long)
+            if 50 < len(sentence) < 200:
+                score += 1
+                
+            scored_sentences.append((sentence, score))
+        
+        # Sort by score and take top sentences
+        scored_sentences.sort(key=lambda x: x[1], reverse=True)
+        
+        # Select sentences until target length
+        selected = []
+        current_length = 0
+        
+        for sentence, score in scored_sentences:
+            if current_length + len(sentence) <= target_length:
+                selected.append(sentence)
+                current_length += len(sentence)
+            else:
+                break
+        
+        return ". ".join(selected) + "."
+    
     def _split_sentences(self, text: str) -> List[str]:
         """Split text into sentences"""
         # Simple sentence splitting
@@ -358,7 +464,7 @@ class NLPProcessor:
             Dict with summary, action_items, key_decisions, timelines, and participants
         """
         try:
-            # Basic summary
+            # Basic summary with optimization
             basic_summary = self.summarize_text(text, max_length=100, min_length=30)
             
             # Enhanced action items with better detection
