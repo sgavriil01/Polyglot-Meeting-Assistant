@@ -231,29 +231,18 @@ const Statistics = ({ stats, loading = false }) => {
   }));
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600, mb: 4 }}>
-        📊 Analytics & Insights
+    <Box sx={{ width: '100%', minHeight: '100vh' }}>
+      <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
+        📊 Enterprise Analytics Dashboard
       </Typography>
 
       {/* Key Metrics */}
-      <Grid container spacing={3} sx={{ mb: 6 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         {keyMetrics.map((metric, index) => (
           <Grid item xs={12} sm={6} md={3} key={index}>
-            <Card 
-              elevation={2} 
-              sx={{ 
-                height: 160,
-                borderRadius: 2,
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  transition: 'transform 0.2s ease',
-                  boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
-                }
-              }}
-            >
-              <CardContent sx={{ textAlign: 'center', p: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+            <Card elevation={2} sx={{ height: '100%', borderRadius: 2 }}>
+              <CardContent sx={{ textAlign: 'center' }}>
+                <Box sx={{ mb: 2 }}>
                   {React.cloneElement(metric.icon, { 
                     sx: { fontSize: 32, color: metric.color } 
                   })}
@@ -261,7 +250,7 @@ const Statistics = ({ stats, loading = false }) => {
                 <Typography variant="h3" component="div" sx={{ color: metric.color, fontWeight: 700, mb: 1 }}>
                   {metric.value}
                 </Typography>
-                <Typography variant="h6" color="text.primary" gutterBottom sx={{ fontWeight: 600 }}>
+                <Typography variant="h6" color="text.primary" gutterBottom>
                   {metric.title}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -273,88 +262,72 @@ const Statistics = ({ stats, loading = false }) => {
         ))}
       </Grid>
 
-      {/* Main Charts Row */}
-      <Grid container spacing={3} sx={{ mb: 6 }}>
-        {/* Meeting Activity Chart */}
-        <Grid item xs={12} lg={8}>
-          <Card elevation={2} sx={{ height: 400, borderRadius: 2 }}>
-            <CardContent sx={{ p: 3, height: '100%' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Timeline sx={{ mr: 2, color: 'primary.main', fontSize: 28 }} />
-                <Box>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 600 }}>
-                    Meeting Activity Trend
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Monthly meeting volume over time
-                  </Typography>
-                </Box>
+      {/* Charts Section */}
+      <Grid container spacing={3}>
+        {/* Meeting Activity Timeline Chart */}
+        <Grid item xs={12} md={8}>
+          <Card elevation={2} sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Meeting Activity (Last 6 Months)</Typography>
+              <Box sx={{ height: 320 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analyticsData.monthly_activity}>
+                    <defs>
+                      <linearGradient id="colorMeetings" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1565c0" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#1565c0" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value, name) => [value, 'Meetings']}
+                      labelStyle={{ color: '#1e293b' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="meetings" 
+                      stroke="#1565c0" 
+                      fillOpacity={1} 
+                      fill="url(#colorMeetings)" 
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </Box>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={analyticsData.monthly_activity}>
-                  <defs>
-                    <linearGradient id="colorMeetings" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1565c0" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#1565c0" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value, name) => [value, 'Meetings']}
-                    labelStyle={{ color: '#1e293b' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="meetings" 
-                    stroke="#1565c0" 
-                    fillOpacity={1} 
-                    fill="url(#colorMeetings)" 
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Content Distribution */}
-        <Grid item xs={12} lg={4}>
-          <Card elevation={2} sx={{ height: 400, borderRadius: 2 }}>
-            <CardContent sx={{ p: 3, height: '100%' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <PieChartIcon sx={{ mr: 2, color: 'secondary.main', fontSize: 28 }} />
-                <Box>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 600 }}>
-                    Content Distribution
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Breakdown by content type
-                  </Typography>
-                </Box>
-              </Box>
+        {/* Content Distribution Pie Chart */}
+        <Grid item xs={12} md={4}>
+          <Card elevation={2} sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Content Distribution</Typography>
               {contentChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={contentChartData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}`}
-                    >
-                      {contentChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                <Box sx={{ height: 320 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={contentChartData}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, value }) => `${name}: ${value}`}
+                      >
+                        {contentChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
               ) : (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 320 }}>
                   <Typography variant="body2" color="text.secondary">
                     No content data available
                   </Typography>
@@ -363,38 +336,27 @@ const Statistics = ({ stats, loading = false }) => {
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
 
-      {/* Bottom Row */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {/* Participant Activity */}
-        <Grid item xs={12} lg={6}>
-          <Card elevation={2} sx={{ borderRadius: 2 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <People sx={{ mr: 2, color: 'success.main', fontSize: 28 }} />
-                <Box>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 600 }}>
-                    Top Participants
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Most active meeting participants
-                  </Typography>
-                </Box>
-              </Box>
+        {/* Top Participants Bar Chart */}
+        <Grid item xs={12} md={6}>
+          <Card elevation={2} sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Top Participants</Typography>
               {participantChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={participantChartData} layout="horizontal">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={100} />
-                    <Tooltip 
-                      formatter={(value, name, props) => [value, 'Meetings']}
-                      labelFormatter={(value, payload) => payload?.[0]?.payload?.fullName || value}
-                    />
-                    <Bar dataKey="meetings" fill="#1565c0" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <Box sx={{ height: 300 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={participantChartData} layout="horizontal">
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis dataKey="name" type="category" width={100} />
+                      <Tooltip 
+                        formatter={(value, name, props) => [value, 'Meetings']}
+                        labelFormatter={(value, payload) => payload?.[0]?.payload?.fullName || value}
+                      />
+                      <Bar dataKey="meetings" fill="#1565c0" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
               ) : (
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
                   <Typography variant="body2" color="text.secondary">
@@ -406,75 +368,55 @@ const Statistics = ({ stats, loading = false }) => {
           </Card>
         </Grid>
 
-        {/* Recent Activity */}
-        <Grid item xs={12} lg={6}>
-          <Card elevation={2} sx={{ borderRadius: 2 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Schedule sx={{ mr: 2, color: 'info.main', fontSize: 28 }} />
-                <Box>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 600 }}>
-                    Recent Activity
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Latest meeting uploads
-                  </Typography>
-                </Box>
+        {/* Recent Activity Feed */}
+        <Grid item xs={12} md={6}>
+          <Card elevation={2} sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Recent Activity</Typography>
+              <Box sx={{ height: 300, overflow: 'auto' }}>
+                <List dense>
+                  {analyticsData.recent_activity?.slice(0, 10).map((activity, index) => (
+                    <ListItem key={index}>
+                      <ListItemIcon>
+                        <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
+                          <Description sx={{ fontSize: 16 }} />
+                        </Avatar>
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={activity.title}
+                        secondary={`${activity.date} • ${activity.participants} participants • ${activity.language?.toUpperCase()}`}
+                        primaryTypographyProps={{ variant: 'body2' }}
+                        secondaryTypographyProps={{ variant: 'caption' }}
+                      />
+                    </ListItem>
+                  ))}
+                  {(!analyticsData.recent_activity || analyticsData.recent_activity.length === 0) && (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        No recent activity
+                      </Typography>
+                    </Box>
+                  )}
+                </List>
               </Box>
-              <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
-                {analyticsData.recent_activity?.slice(0, 6).map((activity, index) => (
-                  <ListItem key={index} sx={{ px: 0, py: 1 }}>
-                    <ListItemIcon>
-                      <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
-                        <Description sx={{ fontSize: 16 }} />
-                      </Avatar>
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={activity.title}
-                      secondary={`${activity.date} • ${activity.participants} participants • ${activity.language?.toUpperCase()}`}
-                      primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
-                      secondaryTypographyProps={{ variant: 'caption' }}
-                    />
-                  </ListItem>
-                ))}
-                {(!analyticsData.recent_activity || analyticsData.recent_activity.length === 0) && (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      No recent activity
-                    </Typography>
-                  </Box>
-                )}
-              </List>
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
 
-      {/* Language Distribution */}
-      {languageChartData.length > 0 && (
-        <Grid container spacing={3}>
+        {/* Language Distribution */}
+        {languageChartData.length > 0 && (
           <Grid item xs={12}>
-            <Card elevation={2} sx={{ borderRadius: 2 }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                  <Language sx={{ mr: 2, color: 'warning.main', fontSize: 28 }} />
-                  <Box>
-                    <Typography variant="h6" component="h3" sx={{ fontWeight: 600 }}>
-                      Language Distribution
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Languages detected in meetings
-                    </Typography>
-                  </Box>
-                </Box>
-                <Grid container spacing={2}>
+            <Card elevation={2}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>Language Distribution</Typography>
+                <Grid container spacing={1}>
                   {languageChartData.map((lang, index) => (
                     <Grid item key={lang.name}>
                       <Chip
                         label={`${lang.name}: ${lang.count}`}
                         variant="outlined"
                         color="primary"
-                        size="medium"
+                        size="small"
                       />
                     </Grid>
                   ))}
@@ -482,8 +424,8 @@ const Statistics = ({ stats, loading = false }) => {
               </CardContent>
             </Card>
           </Grid>
-        </Grid>
-      )}
+        )}
+      </Grid>
     </Box>
   );
 };
