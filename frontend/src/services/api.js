@@ -96,6 +96,12 @@ export const apiService = {
     const response = await api.get('/search/filters');
     return response.data;
   },
+
+  // Get comprehensive analytics data
+  getAnalytics: async () => {
+    const response = await api.get('/analytics');
+    return response.data;
+  },
 };
 
 export default apiService;
