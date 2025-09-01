@@ -308,8 +308,16 @@ function App() {
             </Tabs>
           </Paper>
 
-          {renderContent()}
+          {/* Page Content */}
+          {activeTab !== 'stats' && renderContent()}
         </Container>
+
+        {/* Full-width Analytics Dashboard */}
+        {activeTab === 'stats' && (
+          <Container maxWidth="xl" sx={{ mt: 3 }}>
+            {renderContent()}
+          </Container>
+        )}
       </Box>
 
       {/* Snackbar for notifications */}
