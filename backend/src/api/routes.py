@@ -584,6 +584,151 @@ async def get_similar_meetings(
         print(f"❌ Error finding similar meetings: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to find similar meetings: {str(e)}")
 
+@router.get("/analytics")
+async def get_analytics(
+    request: Request,
+    session_mgr: SessionManager = Depends(get_session_manager)
+):
+    """
+    Get comprehensive analytics data for dashboard
+    """
+    try:
+        from collections import defaultdict
+        from datetime import datetime, timedelta
+        import calendar
+        
+        # Get session ID
+        session_id = get_or_create_session(request, session_mgr)
+        
+        # Get session meetings
+        meetings = session_mgr.get_session_meetings(session_id)
+        
+        if not meetings:
+            return {
+                "success": True,
+                "total_meetings": 0,
+                "meeting_timeline": [],
+                "content_distribution": {},
+                "participant_activity": {},
+                "language_distribution": {},
+                "monthly_activity": [],
+                "action_items_stats": {},
+                "average_meeting_length": 0,
+                "recent_activity": []
+            }
+        
+        # Process meetings for analytics
+        meeting_timeline = []
+        content_distribution = defaultdict(int)
+        participant_counts = defaultdict(int)
+        language_counts = defaultdict(int)
+        monthly_counts = defaultdict(int)
+        action_items_total = 0
+        total_duration = 0
+        duration_count = 0
+        
+        for meeting in meetings:
+            # Timeline data
+            meeting_date = datetime.fromisoformat(meeting['date'].replace('Z', '+00:00'))
+            meeting_timeline.append({
+                "date": meeting_date.strftime('%Y-%m-%d'),
+                "title": meeting['title'],
+                "participants": len(meeting.get('participants', [])),
+                "language": meeting.get('language', 'unknown')
+            })
+            
+            # Content type distribution
+            if meeting.get('action_items'):
+                content_distribution['action_items'] += len(meeting['action_items'])
+                action_items_total += len(meeting['action_items'])
+            if meeting.get('key_decisions'):
+                content_distribution['decisions'] += len(meeting['key_decisions'])
+            if meeting.get('timelines'):
+                content_distribution['timelines'] += len(meeting['timelines'])
+            if meeting.get('summary'):
+                content_distribution['summaries'] += 1
+            if meeting.get('transcript'):
+                content_distribution['transcripts'] += 1
+            
+            # Participant activity
+            for participant in meeting.get('participants', []):
+                participant_counts[participant] += 1
+            
+            # Language distribution
+            language = meeting.get('language', 'unknown')
+            language_counts[language] += 1
+            
+            # Monthly activity
+            month_key = meeting_date.strftime('%Y-%m')
+            monthly_counts[month_key] += 1
+            
+            # Duration tracking
+            if meeting.get('duration', 0) > 0:
+                total_duration += meeting['duration']
+                duration_count += 1
+        
+        # Sort timeline by date
+        meeting_timeline.sort(key=lambda x: x['date'])
+        
+        # Prepare monthly activity chart (last 6 months)
+        now = datetime.now()
+        monthly_activity = []
+        for i in range(5, -1, -1):
+            target_date = now - timedelta(days=i*30)
+            month_key = target_date.strftime('%Y-%m')
+            month_name = calendar.month_abbr[target_date.month]
+            monthly_activity.append({
+                "month": f"{month_name} {target_date.year}",
+                "meetings": monthly_counts.get(month_key, 0),
+                "date": month_key
+            })
+        
+        # Top participants (limit to top 10)
+        top_participants = dict(sorted(participant_counts.items(), key=lambda x: x[1], reverse=True)[:10])
+        
+        # Recent activity (last 10 meetings)
+        recent_activity = sorted(meeting_timeline, key=lambda x: x['date'], reverse=True)[:10]
+        
+        # Calculate average meeting length
+        avg_duration = (total_duration / duration_count) if duration_count > 0 else 0
+        
+        analytics_data = {
+            "success": True,
+            "total_meetings": len(meetings),
+            "meeting_timeline": meeting_timeline,
+            "content_distribution": dict(content_distribution),
+            "participant_activity": top_participants,
+            "language_distribution": dict(language_counts),
+            "monthly_activity": monthly_activity,
+            "action_items_stats": {
+                "total_action_items": action_items_total,
+                "avg_per_meeting": action_items_total / len(meetings) if meetings else 0
+            },
+            "average_meeting_length": round(avg_duration / 60, 1) if avg_duration > 0 else 0,  # Convert to minutes
+            "recent_activity": recent_activity
+        }
+        
+        # Set session in response
+        from fastapi.responses import Response
+        response_obj = Response(content=json.dumps(analytics_data), media_type="application/json")
+        response_obj.set_cookie(
+            key="session_id", 
+            value=session_id, 
+            max_age=3600, 
+            httponly=False,
+            samesite="lax",
+            secure=False
+        )
+        response_obj.headers["X-Session-ID"] = session_id
+        
+        return response_obj
+        
+    except Exception as e:
+        print(f"❌ Error getting analytics: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
+
 @router.delete("/meetings/{meeting_id}")
 async def delete_meeting(
     meeting_id: str,
