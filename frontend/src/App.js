@@ -314,8 +314,15 @@ function App() {
           </Paper>
 
           {/* Page Content */}
-          {renderContent()}
+          {activeTab !== 'stats' && renderContent()}
         </Container>
+
+        {/* Full-width Analytics Dashboard */}
+        {activeTab === 'stats' && (
+          <Box sx={{ mt: 3, px: 3 }}>
+            {renderContent()}
+          </Box>
+        )}
       </Box>
 
       {/* Snackbar for notifications */}
