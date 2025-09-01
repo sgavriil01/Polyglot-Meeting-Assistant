@@ -152,7 +152,7 @@ class MeetingSearchEngine:
     @timing_decorator
     def generate_embeddings(self, texts: List[str]) -> np.ndarray:
         """
-        Generate embeddings for a list of texts
+        ULTIMATE OPTIMIZATION: High-speed batch embedding generation
         
         Args:
             texts: List of text strings to encode
@@ -164,12 +164,22 @@ class MeetingSearchEngine:
             raise RuntimeError("Sentence transformer not available")
         
         try:
-            # Generate embeddings
-            embeddings = self.encoder.encode(texts, convert_to_numpy=True)
+            print(f"🚀 Generating embeddings for {len(texts)} chunks...")
             
-            # Normalize for cosine similarity
-            faiss.normalize_L2(embeddings)
+            # OPTIMIZATION: Batch processing with optimized parameters
+            embeddings = self.encoder.encode(
+                texts, 
+                convert_to_numpy=True,
+                batch_size=16,  # Optimal batch size for speed
+                show_progress_bar=False,  # Disable progress bar for speed
+                normalize_embeddings=True  # Built-in normalization
+            )
             
+            # OPTIMIZATION: Skip manual normalization if already done
+            if not hasattr(self.encoder, 'normalize_embeddings') or not self.encoder.normalize_embeddings:
+                faiss.normalize_L2(embeddings)
+            
+            print(f"✅ Generated {embeddings.shape[0]} embeddings in {embeddings.shape[1]} dimensions")
             return embeddings
             
         except Exception as e:
@@ -246,19 +256,26 @@ class MeetingSearchEngine:
         # Full transcript (chunked if too long)
         transcript = meeting_data.get('transcript', '')
         if transcript:
-            # OPTIMIZATION: Smart chunking for better search quality and performance
+            # ULTIMATE OPTIMIZATION: Multi-level indexing for speed + quality
             text_length = len(transcript)
-            if text_length <= 2000:
+            if text_length <= 3000:
                 # Small transcript: no chunking needed
                 texts.append(transcript)
                 types.append('transcript')
             else:
-                # Large transcript: smart chunking with overlap
-                chunks = self._smart_chunk_text(transcript, target_chunks=8, overlap=300)
-                print(f"🔍 Smart search chunking: {text_length} chars → {len(chunks)} chunks (vs {text_length//500} old chunks)")
+                # Large transcript: intelligent chunking with semantic boundaries
+                chunks = self._smart_chunk_text(transcript, target_chunks=6, overlap=400)
+                print(f"🚀 ULTIMATE CHUNKING: {text_length} chars → {len(chunks)} semantic chunks (vs {text_length//500} old chunks)")
+                
+                # Add summary-level chunk for quick overview searches
+                summary_chunk = transcript[:min(2000, len(transcript))] + ("..." if len(transcript) > 2000 else "")
+                texts.append(summary_chunk)
+                types.append('transcript_summary')
+                
+                # Add detailed chunks for specific searches
                 for chunk in chunks:
                     texts.append(chunk)
-                    types.append('transcript')
+                    types.append('transcript_detail')
         
         # Summary
         summary = meeting_data.get('summary', '')
@@ -335,40 +352,63 @@ class MeetingSearchEngine:
         
         return chunks
     
-    def _smart_chunk_text(self, text: str, target_chunks: int = 8, overlap: int = 300) -> List[str]:
+    def _smart_chunk_text(self, text: str, target_chunks: int = 6, overlap: int = 400) -> List[str]:
         """
-        Smart text chunking for search indexing with overlap and semantic boundaries
+        ULTIMATE OPTIMIZATION: Semantic chunking with intelligent boundaries
         
         Args:
             text: Text to chunk
-            target_chunks: Target number of chunks
-            overlap: Character overlap between chunks
+            target_chunks: Target number of chunks (reduced for speed)
+            overlap: Character overlap between chunks (increased for quality)
             
         Returns:
-            List of text chunks
+            List of text chunks optimized for both speed and quality
         """
         text_length = len(text)
+        
+        # Dynamic chunk sizing based on content complexity
+        if text_length <= 3000:
+            # Small text: no chunking needed
+            return [text]
+        elif text_length <= 8000:
+            # Medium text: 3-4 chunks
+            target_chunks = min(target_chunks, 4)
+        else:
+            # Large text: 5-6 chunks max
+            target_chunks = min(target_chunks, 6)
+        
         chunk_size = text_length // target_chunks
+        chunk_size = max(chunk_size, 1200)  # Increased minimum for better quality
         
-        # Ensure minimum chunk size for meaningful search
-        chunk_size = max(chunk_size, 800)
-        
-        # Split by sentences for better semantic boundaries
+        # Split by semantic boundaries (sentences + topic indicators)
         sentences = text.split('. ')
         chunks = []
         current_chunk = []
         current_length = 0
         
-        for sentence in sentences:
+        # Topic detection keywords for better boundaries
+        topic_keywords = ['agenda', 'next', 'moving on', 'let\'s discuss', 'regarding', 'in terms of', 'as for']
+        
+        for i, sentence in enumerate(sentences):
             sentence_length = len(sentence)
+            sentence_lower = sentence.lower()
             
-            if current_length + sentence_length > chunk_size and current_chunk:
-                # Add overlap from previous chunk for context preservation
+            # Check if this sentence starts a new topic
+            is_topic_boundary = any(keyword in sentence_lower for keyword in topic_keywords)
+            
+            # Force chunk break on topic boundaries or size limits
+            should_break = (current_length + sentence_length > chunk_size and current_chunk) or \
+                          (is_topic_boundary and current_length > chunk_size * 0.7 and current_chunk)
+            
+            if should_break:
+                # Add intelligent overlap from previous chunk
                 if chunks and overlap > 0:
                     prev_chunk = chunks[-1]
+                    # Get last meaningful sentences for context
                     overlap_start = max(0, len(prev_chunk) - overlap)
                     overlap_text = prev_chunk[overlap_start:]
-                    current_chunk.insert(0, overlap_text)
+                    if overlap_text.strip():
+                        current_chunk.insert(0, overlap_text)
                 
                 chunks.append(". ".join(current_chunk) + ".")
                 current_chunk = [sentence.strip(".")]
@@ -380,8 +420,16 @@ class MeetingSearchEngine:
         if current_chunk:
             chunks.append(". ".join(current_chunk) + ".")
         
-        # Limit to target number and ensure quality
-        return chunks[:target_chunks]
+        # Ensure we don't exceed target and maintain quality
+        final_chunks = chunks[:target_chunks]
+        
+        # Quality check: ensure no chunk is too small
+        quality_chunks = []
+        for chunk in final_chunks:
+            if len(chunk) >= 800:  # Minimum quality threshold
+                quality_chunks.append(chunk)
+        
+        return quality_chunks if quality_chunks else final_chunks
     
     @timing_decorator
     def search(self, query: str, top_k: int = 10, content_types: Optional[List[str]] = None, 
@@ -435,7 +483,19 @@ class MeetingSearchEngine:
                 if not self._passes_advanced_filters(metadata, score, date_from, date_to, participants, min_relevance):
                     continue
                 
-                # Create result
+                # ULTIMATE OPTIMIZATION: Enhanced result with quality scoring
+                # Boost scores for summary chunks and better content types
+                enhanced_score = float(score)
+                
+                # Quality boost for summary chunks
+                if metadata['content_type'] == 'transcript_summary':
+                    enhanced_score *= 1.2
+                elif metadata['content_type'] == 'action_item':
+                    enhanced_score *= 1.1
+                elif metadata['content_type'] == 'decision':
+                    enhanced_score *= 1.1
+                
+                # Create enhanced result
                 result = {
                     'meeting_id': metadata['meeting_id'],
                     'meeting_title': metadata['meeting_title'],
@@ -443,8 +503,11 @@ class MeetingSearchEngine:
                     'content_type': metadata['content_type'],
                     'text': metadata['text'],
                     'participants': metadata['participants'],
-                    'relevance_score': float(score),
-                    'snippet': self._create_snippet(metadata['text'], query)
+                    'relevance_score': enhanced_score,
+                    'original_score': float(score),
+                    'snippet': self._create_snippet(metadata['text'], query),
+                    'chunk_size': len(metadata['text']),
+                    'quality_indicator': 'high' if len(metadata['text']) > 1000 else 'medium'
                 }
                 
                 results.append(result)
