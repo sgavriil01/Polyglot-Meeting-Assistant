@@ -319,9 +319,9 @@ function App() {
 
         {/* Full-width Analytics Dashboard */}
         {activeTab === 'stats' && (
-          <Box sx={{ mt: 3, px: 3 }}>
+          <Container maxWidth="xl" sx={{ mt: 3 }}>
             {renderContent()}
-          </Box>
+          </Container>
         )}
       </Box>
 
