@@ -104,11 +104,9 @@ function App() {
 
   // Load statistics on component mount with delay to allow backend initialization
   useEffect(() => {
-    // Wait 3 seconds for backend to initialize, then load stats
     const timer = setTimeout(() => {
       loadStats();
     }, 3000);
-    
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -118,7 +116,6 @@ function App() {
       const statsData = await apiService.getStats();
       setStats(statsData);
     } catch (error) {
-      // If it's a 503 error (service not ready) and we haven't retried too many times
       if (error.response?.status === 503 && retryCount < 3) {
         console.log(`Backend not ready, retrying in ${(retryCount + 1) * 2} seconds...`);
         setTimeout(() => loadStats(retryCount + 1), (retryCount + 1) * 2000);
@@ -149,9 +146,7 @@ function App() {
       const result = await apiService.uploadFile(file);
       if (result.success) {
         showSnackbar(`File "${result.filename}" uploaded successfully`, 'success');
-        // Reload stats after successful upload
-        loadStats();
-        // Refresh filter options to include new participants
+        loadStats(); // reload stats
         setFilterRefreshTrigger(prev => prev + 1);
       } else {
         throw new Error(result.message || 'Upload failed');
@@ -246,7 +241,7 @@ function App() {
           </Toolbar>
         </AppBar>
 
-        {/* Loading state */}
+        {/* Main Content with Tabs and Page Content */}
         <Container maxWidth="xl" sx={{ py: 4 }}>
           {loading && (
             <Alert 
@@ -313,16 +308,8 @@ function App() {
             </Tabs>
           </Paper>
 
-          {/* Page Content */}
-          {activeTab !== 'stats' && renderContent()}
+          {renderContent()}
         </Container>
-
-        {/* Full-width Analytics Dashboard */}
-        {activeTab === 'stats' && (
-          <Container maxWidth="xl" sx={{ mt: 3 }}>
-            {renderContent()}
-          </Container>
-        )}
       </Box>
 
       {/* Snackbar for notifications */}
