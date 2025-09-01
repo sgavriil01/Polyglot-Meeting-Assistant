@@ -11,6 +11,8 @@ import {
   IconButton,
   Tooltip,
   Skeleton,
+  Button,
+  ButtonGroup,
 } from '@mui/material';
 import {
   Description,
@@ -19,6 +21,9 @@ import {
   TrendingUp,
   ContentCopy,
   OpenInNew,
+  FileDownload,
+  PictureAsPdf,
+  TableChart,
 } from '@mui/icons-material';
 
 const SearchResults = ({ results, loading = false, query = '' }) => {
@@ -102,15 +107,121 @@ const SearchResults = ({ results, loading = false, query = '' }) => {
     navigator.clipboard.writeText(text);
   };
 
+  // Export functions
+  const exportToPDF = () => {
+    // Create PDF content
+    const content = `
+SEARCH RESULTS REPORT
+Query: "${query}"
+Generated: ${new Date().toLocaleString()}
+Total Results: ${results.length}
+
+${results.map((result, index) => `
+${index + 1}. ${result.meeting_title}
+Date: ${formatDate(result.meeting_date)}
+Type: ${result.content_type.replace('_', ' ').toUpperCase()}
+Relevance: ${(result.relevance_score * 100).toFixed(1)}%
+${result.participants?.length ? `Participants: ${result.participants.join(', ')}` : ''}
+
+Content:
+${result.snippet}
+
+${'='.repeat(80)}
+`).join('')}
+    `;
+
+    // Create and download PDF
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `search-results-${query.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  const exportToCSV = () => {
+    const headers = ['Meeting Title', 'Date', 'Content Type', 'Relevance Score', 'Participants', 'Snippet'];
+    const csvContent = [
+      headers.join(','),
+      ...results.map(result => [
+        `"${result.meeting_title.replace(/"/g, '""')}"`,
+        `"${formatDate(result.meeting_date)}"`,
+        `"${result.content_type.replace('_', ' ')}"`,
+        `"${(result.relevance_score * 100).toFixed(1)}%"`,
+        `"${result.participants?.join('; ') || ''}"`,
+        `"${result.snippet.replace(/"/g, '""').substring(0, 200)}..."`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `search-results-${query.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  const copyAllToClipboard = () => {
+    const content = results.map((result, index) => 
+      `${index + 1}. ${result.meeting_title}\n` +
+      `Date: ${formatDate(result.meeting_date)}\n` +
+      `Type: ${result.content_type.replace('_', ' ')}\n` +
+      `Relevance: ${(result.relevance_score * 100).toFixed(1)}%\n` +
+      `Content: ${result.snippet}\n\n`
+    ).join('');
+    
+    navigator.clipboard.writeText(content);
+  };
+
   return (
     <Box>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" component="h2">
-          Search Results
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {results.length} result{results.length !== 1 ? 's' : ''} found
-        </Typography>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h6" component="h2">
+            Search Results
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {results.length} result{results.length !== 1 ? 's' : ''} found
+          </Typography>
+        </Box>
+        
+        {results.length > 0 && (
+          <ButtonGroup variant="outlined" size="small">
+            <Tooltip title="Download as CSV">
+              <Button
+                startIcon={<TableChart />}
+                onClick={exportToCSV}
+                sx={{ minWidth: 'auto' }}
+              >
+                CSV
+              </Button>
+            </Tooltip>
+            <Tooltip title="Download as Text Report">
+              <Button
+                startIcon={<PictureAsPdf />}
+                onClick={exportToPDF}
+                sx={{ minWidth: 'auto' }}
+              >
+                Report
+              </Button>
+            </Tooltip>
+            <Tooltip title="Copy all to clipboard">
+              <Button
+                startIcon={<ContentCopy />}
+                onClick={copyAllToClipboard}
+                sx={{ minWidth: 'auto' }}
+              >
+                Copy
+              </Button>
+            </Tooltip>
+          </ButtonGroup>
+        )}
       </Box>
 
       <Grid container spacing={2}>
