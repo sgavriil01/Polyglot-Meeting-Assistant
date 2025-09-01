@@ -10,8 +10,13 @@ import {
   createTheme,
   Alert,
   Snackbar,
+  Tab,
+  Tabs,
+  Paper,
+  Badge,
+  Avatar,
 } from '@mui/material';
-import { Search, CloudUpload, Analytics } from '@mui/icons-material';
+import { Search, CloudUpload, Analytics, Business, SmartToy } from '@mui/icons-material';
 
 import SearchBar from './components/SearchBar';
 import SearchResults from './components/SearchResults';
@@ -19,18 +24,71 @@ import Statistics from './components/Statistics';
 import FileUpload from './components/FileUpload';
 import apiService from './services/api';
 
-// Create theme
+// Create enterprise theme
 const theme = createTheme({
   palette: {
+    mode: 'light',
     primary: {
-      main: '#1976d2',
+      main: '#1565c0', // Professional blue
+      dark: '#0d47a1',
+      light: '#5e92f3',
     },
     secondary: {
-      main: '#dc004e',
+      main: '#f57c00', // Professional orange
+      dark: '#e65100',
+      light: '#ffb74d',
+    },
+    background: {
+      default: '#f8fafc',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#1e293b',
+      secondary: '#64748b',
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h1: { fontWeight: 700 },
+    h2: { fontWeight: 600 },
+    h3: { fontWeight: 600 },
+    h4: { fontWeight: 600 },
+    h5: { fontWeight: 600 },
+    h6: { fontWeight: 600 },
+    button: { textTransform: 'none', fontWeight: 500 },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+  shadows: [
+    'none',
+    '0px 1px 3px rgba(0, 0, 0, 0.05)',
+    '0px 4px 6px rgba(0, 0, 0, 0.05)',
+    '0px 10px 15px rgba(0, 0, 0, 0.1)',
+    '0px 20px 25px rgba(0, 0, 0, 0.1)',
+    '0px 25px 50px rgba(0, 0, 0, 0.25)',
+    ...Array(19).fill('0px 25px 50px rgba(0, 0, 0, 0.25)'),
+  ],
+  components: {
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.05)',
+          '&:hover': {
+            boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+          },
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          textTransform: 'none',
+          fontWeight: 500,
+        },
+      },
+    },
   },
 });
 
@@ -145,90 +203,120 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      
-      {/* App Bar */}
-      <AppBar position="static" elevation={2}>
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            🔍 Polyglot Meeting Assistant
-          </Typography>
-          <Typography variant="body2" sx={{ opacity: 0.8 }}>
-            AI-powered semantic search
-          </Typography>
-        </Toolbar>
-      </AppBar>
+      <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: 'background.default' }}>
+        
+        {/* Enterprise Header */}
+        <AppBar 
+          position="static" 
+          elevation={0}
+          sx={{ 
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+            borderBottom: 1,
+            borderColor: 'divider'
+          }}
+        >
+          <Toolbar sx={{ justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+                <SmartToy />
+              </Avatar>
+              <Box>
+                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                  Polyglot Meeting Assistant
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Enterprise AI-Powered Meeting Intelligence
+                </Typography>
+              </Box>
+            </Box>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Badge 
+                badgeContent={stats?.total_meetings || 0} 
+                color="primary"
+                sx={{ '& .MuiBadge-badge': { fontSize: '0.75rem' } }}
+              >
+                <Business color="action" />
+              </Badge>
+              <Typography variant="body2" color="text.secondary">
+                {stats?.total_meetings || 0} Meetings
+              </Typography>
+            </Box>
+          </Toolbar>
+        </AppBar>
 
-      {/* Main Content */}
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        {/* Navigation Tabs */}
-        <Box sx={{ mb: 4, display: 'flex', gap: 1 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              px: 3,
-              py: 1.5,
-              borderRadius: 2,
-              cursor: 'pointer',
-              backgroundColor: activeTab === 'search' ? 'primary.main' : 'transparent',
-              color: activeTab === 'search' ? 'white' : 'text.primary',
-              '&:hover': {
-                backgroundColor: activeTab === 'search' ? 'primary.dark' : 'grey.100',
-              },
-            }}
-            onClick={() => setActiveTab('search')}
-          >
-            <Search />
-            <Typography variant="body1">Search</Typography>
-          </Box>
-          
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              px: 3,
-              py: 1.5,
-              borderRadius: 2,
-              cursor: 'pointer',
-              backgroundColor: activeTab === 'upload' ? 'primary.main' : 'transparent',
-              color: activeTab === 'upload' ? 'white' : 'text.primary',
-              '&:hover': {
-                backgroundColor: activeTab === 'upload' ? 'primary.dark' : 'grey.100',
-              },
-            }}
-            onClick={() => setActiveTab('upload')}
-          >
-            <CloudUpload />
-            <Typography variant="body1">Upload</Typography>
-          </Box>
-          
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              px: 3,
-              py: 1.5,
-              borderRadius: 2,
-              cursor: 'pointer',
-              backgroundColor: activeTab === 'stats' ? 'primary.main' : 'transparent',
-              color: activeTab === 'stats' ? 'white' : 'text.primary',
-              '&:hover': {
-                backgroundColor: activeTab === 'stats' ? 'primary.dark' : 'grey.100',
-              },
-            }}
-            onClick={() => setActiveTab('stats')}
-          >
-            <Analytics />
-            <Typography variant="body1">Statistics</Typography>
-          </Box>
-        </Box>
+        {/* Loading state */}
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+          {loading && (
+            <Alert 
+              severity="info" 
+              sx={{ 
+                mb: 3, 
+                borderRadius: 2,
+                '& .MuiAlert-icon': { fontSize: '1.5rem' }
+              }}
+            >
+              🚀 Initializing AI models... This may take a moment for the best experience.
+            </Alert>
+          )}
 
-        {/* Page Content */}
-        {renderContent()}
-      </Container>
+          {/* Professional Tab Navigation */}
+          <Paper 
+            elevation={0} 
+            sx={{ 
+              mb: 4, 
+              borderRadius: 3,
+              border: 1,
+              borderColor: 'divider',
+              overflow: 'hidden'
+            }}
+          >
+            <Tabs
+              value={activeTab}
+              onChange={(e, newValue) => setActiveTab(newValue)}
+              variant="fullWidth"
+              sx={{
+                '& .MuiTabs-indicator': {
+                  height: 3,
+                  borderRadius: '3px 3px 0 0',
+                },
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: '1rem',
+                  minHeight: 64,
+                  '&.Mui-selected': {
+                    fontWeight: 600,
+                  },
+                },
+              }}
+            >
+              <Tab 
+                value="search" 
+                label="Search & Discovery" 
+                icon={<Search />}
+                iconPosition="start"
+              />
+              <Tab 
+                value="upload" 
+                label="Upload & Process" 
+                icon={<CloudUpload />}
+                iconPosition="start"
+              />
+              <Tab 
+                value="stats" 
+                label="Analytics & Insights" 
+                icon={<Analytics />}
+                iconPosition="start"
+              />
+            </Tabs>
+          </Paper>
+
+          {/* Page Content */}
+          {renderContent()}
+        </Container>
+      </Box>
 
       {/* Snackbar for notifications */}
       <Snackbar
