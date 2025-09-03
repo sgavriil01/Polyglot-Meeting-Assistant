@@ -113,8 +113,20 @@ function App() {
   const loadStats = async (retryCount = 0) => {
     setLoading(true);
     try {
-      const statsData = await apiService.getStats();
-      setStats(statsData);
+      // Load both statistics (for charts) and analytics (for enhanced data)
+      const [statsData, analyticsData] = await Promise.all([
+        apiService.getStats(),
+        apiService.getAnalytics()
+      ]);
+      
+      // Combine the data - use stats for charts, analytics for enhanced info
+      const combinedData = {
+        ...statsData,
+        // Add analytics data for enhanced dashboard features
+        enhanced_analytics: analyticsData
+      };
+      
+      setStats(combinedData);
     } catch (error) {
       if (error.response?.status === 503 && retryCount < 3) {
         console.log(`Backend not ready, retrying in ${(retryCount + 1) * 2} seconds...`);
@@ -146,7 +158,7 @@ function App() {
       const result = await apiService.uploadFile(file);
       if (result.success) {
         showSnackbar(`File "${result.filename}" uploaded successfully`, 'success');
-        loadStats(); // reload stats
+        loadStats(); // reload stats and analytics
         setFilterRefreshTrigger(prev => prev + 1);
       } else {
         throw new Error(result.message || 'Upload failed');
