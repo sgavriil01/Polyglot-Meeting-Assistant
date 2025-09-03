@@ -656,9 +656,30 @@ async def get_analytics(
             if meeting.get('transcript'):
                 content_distribution['transcripts'] += 1
             
-            # Participant activity
-            for participant in meeting.get('participants', []):
-                participant_counts[participant] += 1
+            # Participant activity - count actual mentions in transcript
+            participants = meeting.get('participants', [])
+            transcript_lower = meeting.get('transcript', '').lower()
+            
+            for participant in participants:
+                # Count how many times this participant speaks in the transcript
+                # Look for patterns like "NAME:" or "NAME said" or "NAME mentioned"
+                participant_lower = participant.lower()
+                patterns = [
+                    f"{participant_lower}:",  # Direct speech
+                    f"{participant_lower} said",
+                    f"{participant_lower} mentioned",
+                    f"{participant_lower} reported",
+                    f"{participant_lower} proposed",
+                    f"{participant_lower} agreed",
+                    f"{participant_lower} suggested"
+                ]
+                
+                mention_count = sum(transcript_lower.count(pattern) for pattern in patterns)
+                if mention_count > 0:
+                    participant_counts[participant] += mention_count
+                else:
+                    # If no direct mentions found, still count them as present
+                    participant_counts[participant] += 1
             
             # Language distribution
             language = meeting.get('language', 'unknown')
