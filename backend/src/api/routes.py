@@ -74,13 +74,19 @@ search_engine: Optional[MeetingSearchEngine] = None
 session_manager: Optional[SessionManager] = None
 
 def get_asr_processor() -> WhisperASR:
+    """Get cached ASR processor instance"""
+    global asr_processor
     if asr_processor is None:
-        raise HTTPException(status_code=503, detail="ASR processor not initialized")
+        # Initialize cached singleton instance
+        asr_processor = WhisperASR(model_size="base")
     return asr_processor
 
 def get_nlp_processor() -> NLPProcessor:
+    """Get cached NLP processor instance"""
+    global nlp_processor
     if nlp_processor is None:
-        raise HTTPException(status_code=503, detail="NLP processor not initialized")
+        # Initialize cached singleton instance
+        nlp_processor = NLPProcessor()
     return nlp_processor
 
 def get_search_engine() -> MeetingSearchEngine:
