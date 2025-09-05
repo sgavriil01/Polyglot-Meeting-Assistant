@@ -35,6 +35,7 @@ import {
   PieChart as PieChartIcon,
   Group,
   AccessTime,
+  Speed,
 } from '@mui/icons-material';
 import {
   LineChart,
@@ -46,6 +47,8 @@ import {
   PieChart,
   Pie,
   Cell,
+  ScatterChart,
+  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -56,6 +59,51 @@ import {
 
 
 const COLORS = ['#1565c0', '#f57c00', '#388e3c', '#7b1fa2', '#d32f2f', '#0097a7', '#fbc02d', '#5d4037'];
+
+// Language code mapping for better display names
+const LANGUAGE_NAMES = {
+  'en': 'English',
+  'es': 'Spanish', 
+  'fr': 'French',
+  'de': 'German',
+  'it': 'Italian',
+  'pt': 'Portuguese',
+  'ru': 'Russian',
+  'zh': 'Chinese',
+  'ja': 'Japanese',
+  'ko': 'Korean',
+  'ar': 'Arabic',
+  'hi': 'Hindi',
+  'nl': 'Dutch',
+  'pl': 'Polish',
+  'sv': 'Swedish',
+  'da': 'Danish',
+  'no': 'Norwegian',
+  'fi': 'Finnish',
+  'tr': 'Turkish',
+  'cs': 'Czech',
+  'hu': 'Hungarian',
+  'ro': 'Romanian',
+  'bg': 'Bulgarian',
+  'hr': 'Croatian',
+  'sk': 'Slovak',
+  'sl': 'Slovenian',
+  'et': 'Estonian',
+  'lv': 'Latvian',
+  'lt': 'Lithuanian',
+  'uk': 'Ukrainian',
+  'be': 'Belarusian',
+  'mk': 'Macedonian',
+  'sq': 'Albanian',
+  'mt': 'Maltese',
+  'ga': 'Irish',
+  'cy': 'Welsh',
+  'eu': 'Basque',
+  'ca': 'Catalan',
+  'gl': 'Galician',
+  'unknown': 'Unknown',
+  'uncertain': 'Uncertain'
+};
 
 const Statistics = ({ stats, loading = false }) => {
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -206,16 +254,18 @@ const Statistics = ({ stats, loading = false }) => {
 
   // Prepare participant activity chart data
   const participantChartData = Object.entries(analyticsData.participant_activity || {})
-    .slice(0, 10)
+    .filter(([name, count]) => name && name.trim() && count > 0)  // Filter out empty/invalid entries
+    .sort((a, b) => b[1] - a[1])  // Sort by count descending
+    .slice(0, 8)  // Limit to top 8 for better visualization
     .map(([name, count]) => ({
-      name: name.length > 12 ? name.substring(0, 12) + '...' : name,
+      name: name.length > 15 ? name.substring(0, 15) + '...' : name,
       meetings: count,
-      fullName: name,
     }));
 
   // Prepare language distribution data
   const languageChartData = Object.entries(analyticsData.language_distribution || {}).map(([lang, count]) => ({
-    name: lang === 'unknown' ? 'Unknown' : lang.toUpperCase(),
+    name: LANGUAGE_NAMES[lang] || lang.toUpperCase(),
+    code: lang,
     value: count,
     count: count,
   }));
@@ -226,57 +276,14 @@ const Statistics = ({ stats, loading = false }) => {
         📊 Enterprise Analytics Dashboard
       </Typography>
 
-      {/* Hero Metrics Row - Full Width */}
+      {/* Main Charts Row */}
       <Box sx={{ 
         display: 'flex', 
         gap: 3, 
         mb: 4,
         width: '100%'
       }}>
-        {keyMetrics.map((metric, index) => (
-          <Box key={index} sx={{ 
-            flex: '1 1 25%',
-            minWidth: 0
-          }}>
-            <Card elevation={2} sx={{ 
-              height: '100%', 
-              borderRadius: 3,
-              border: '1px solid #e0e0e0',
-              '&:hover': {
-                boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
-                transform: 'translateY(-1px)',
-                transition: 'all 0.2s ease'
-              }
-            }}>
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Box sx={{ mb: 2 }}>
-                  {React.cloneElement(metric.icon, { 
-                    sx: { fontSize: 36, color: metric.color } 
-                  })}
-                </Box>
-                <Typography variant="h3" component="div" sx={{ color: metric.color, fontWeight: 700, mb: 1 }}>
-                  {metric.value}
-                </Typography>
-                <Typography variant="h6" color="text.primary" gutterBottom sx={{ fontWeight: 600 }}>
-                  {metric.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {metric.subtitle}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-        ))}
-      </Box>
-
-      {/* Main Charts Row - Perfect 50/50 Layout */}
-      <Box sx={{ 
-        display: 'flex', 
-        gap: 3, 
-        mb: 4,
-        width: '100%'
-      }}>
-        {/* Meeting Activity Timeline - Left 50% */}
+        {/* Processing Efficiency Dashboard */}
         <Box sx={{ 
           flex: '1 1 50%',
           minWidth: 0
@@ -293,61 +300,190 @@ const Statistics = ({ stats, loading = false }) => {
           }}>
             <CardContent sx={{ p: 3, height: '100%' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Timeline sx={{ mr: 2, color: 'primary.main', fontSize: 28 }} />
+                <Speed sx={{ mr: 2, color: 'primary.main', fontSize: 28 }} />
                 <Box>
                   <Typography variant="h6" component="h3" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                    Meeting Activity Timeline
+                    Session Overview
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Track meeting volume trends
+                    Current processing session metrics
                   </Typography>
                 </Box>
               </Box>
-              <Box sx={{ height: 400, width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={analyticsData.monthly_activity} margin={{ top: 20, right: 20, left: 10, bottom: 20 }}>
-                    <defs>
-                      <linearGradient id="colorMeetings" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1565c0" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#1565c0" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis 
-                      dataKey="month" 
-                      tick={{ fontSize: 12, fill: '#666' }}
-                      axisLine={{ stroke: '#ccc' }}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 12, fill: '#666' }}
-                      axisLine={{ stroke: '#ccc' }}
-                    />
-                    <Tooltip 
-                      formatter={(value, name) => [value, 'Meetings']}
-                      labelStyle={{ color: '#1e293b' }}
-                      contentStyle={{
-                        backgroundColor: 'white',
-                        border: '1px solid #ccc',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                      }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="meetings" 
-                      stroke="#1565c0" 
-                      fillOpacity={1} 
-                      fill="url(#colorMeetings)" 
-                      strokeWidth={3}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Box>
+              
+              <Grid container spacing={2} sx={{ height: 'calc(100% - 80px)' }}>
+                {/* Top Row - Main Metrics */}
+                <Grid item xs={6}>
+                  <Card sx={{ 
+                    background: '#667eea',
+                    color: 'white',
+                    height: '120px',
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)',
+                    }
+                  }}>
+                    <CardContent sx={{ 
+                      textAlign: 'center',
+                      p: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="h2" sx={{ fontWeight: 'bold', color: 'white', mb: 1 }}>
+                        {analyticsData.total_meetings}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
+                        Total Meetings
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                        Files processed
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Card sx={{ 
+                    background: '#f5576c',
+                    color: 'white',
+                    height: '120px',
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(245, 87, 108, 0.3)',
+                    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 20px rgba(245, 87, 108, 0.4)',
+                    }
+                  }}>
+                    <CardContent sx={{ 
+                      textAlign: 'center',
+                      p: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="h2" sx={{ fontWeight: 'bold', color: 'white', mb: 1 }}>
+                        {analyticsData.action_items_stats?.total_action_items || 0}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
+                        Action Items
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                        {analyticsData.action_items_stats?.avg_per_meeting?.toFixed(1) || 0} per meeting
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Second Row - Additional Metrics */}
+                <Grid item xs={6}>
+                  <Card sx={{ 
+                    background: '#4facfe',
+                    color: 'white',
+                    height: '120px',
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(79, 172, 254, 0.3)',
+                    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 20px rgba(79, 172, 254, 0.4)',
+                    }
+                  }}>
+                    <CardContent sx={{ 
+                      textAlign: 'center',
+                      p: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="h2" sx={{ fontWeight: 'bold', color: 'white', mb: 1 }}>
+                        {Object.keys(analyticsData.participant_activity || {}).length}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
+                        Participants
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                        Unique speakers
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Card sx={{ 
+                    background: '#43e97b',
+                    color: 'white',
+                    height: '120px',
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(67, 233, 123, 0.3)',
+                    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 20px rgba(67, 233, 123, 0.4)',
+                    }
+                  }}>
+                    <CardContent sx={{ 
+                      textAlign: 'center',
+                      p: 2,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="h2" sx={{ fontWeight: 'bold', color: 'white', mb: 1 }}>
+                        {Object.keys(analyticsData.language_distribution || {}).length}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>
+                        Languages
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                        Detected
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Content Analysis Summary */}
+                <Grid item xs={12}>
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" color="text.primary" sx={{ mb: 2, fontWeight: 600 }}>
+                      Content Breakdown
+                    </Typography>
+                    <Grid container spacing={1}>
+                      {Object.entries(analyticsData.content_distribution || {}).map(([type, count], index) => (
+                        <Grid item xs={6} sm={4} md={2.4} key={type}>
+                          <Box sx={{ 
+                            textAlign: 'center',
+                            p: 1.5,
+                            borderRadius: 1,
+                            border: '1px solid #e0e0e0',
+                            bgcolor: 'grey.50'
+                          }}>
+                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: COLORS[index % COLORS.length] }}>
+                              {count}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                              {type.replace('_', ' ')}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
         </Box>
 
-        {/* Top Participants - Right 50% */}
+        {/* Top Participants */}
         <Box sx={{ 
           flex: '1 1 50%',
           minWidth: 0
@@ -379,46 +515,70 @@ const Statistics = ({ stats, loading = false }) => {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart 
                       data={participantChartData} 
-                      layout="horizontal" 
-                      margin={{ left: 80, right: 20, top: 20, bottom: 20 }}
+                      margin={{ left: 20, right: 20, top: 20, bottom: 80 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                      <CartesianGrid 
+                        strokeDasharray="2 2" 
+                        stroke="#e0e0e0" 
+                        strokeWidth={0.5}
+                        horizontal={true}
+                        vertical={false}
+                      />
                       <XAxis 
-                        type="number" 
-                        tick={{ fontSize: 12, fill: '#666' }}
-                        axisLine={{ stroke: '#ccc' }}
+                        dataKey="name" 
+                        tick={{ fontSize: 11, fill: '#666', angle: -45, textAnchor: 'end' }}
+                        axisLine={{ stroke: '#ccc', strokeWidth: 1 }}
+                        tickLine={{ stroke: '#ccc', strokeWidth: 1 }}
+                        interval={0}
+                        height={70}
                       />
                       <YAxis 
-                        dataKey="name" 
-                        type="category" 
-                        width={80} 
-                        tick={{ fontSize: 11, fill: '#666' }}
-                        axisLine={{ stroke: '#ccc' }}
+                        tick={{ fontSize: 12, fill: '#666' }}
+                        axisLine={{ stroke: '#ccc', strokeWidth: 1 }}
+                        tickLine={{ stroke: '#ccc', strokeWidth: 1 }}
+                        label={{ value: 'Mentions', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#666', fontSize: '12px' } }}
                       />
                       <Tooltip 
-                        formatter={(value, name, props) => [value, 'Meetings']}
-                        labelFormatter={(value, payload) => payload?.[0]?.payload?.fullName || value}
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #ccc',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        formatter={(value, name, props) => [`${value} mentions`, props.payload.fullName]}
+                        labelFormatter={(value, payload) => {
+                          const data = participantChartData.find(p => p.name === value);
+                          return data?.fullName || value;
                         }}
+                        contentStyle={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                          border: '2px solid #4facfe',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          fontSize: '13px',
+                          padding: '8px 12px'
+                        }}
+                        cursor={{ fill: 'rgba(79, 172, 254, 0.05)' }}
                       />
                       <Bar 
                         dataKey="meetings" 
-                        fill="#1565c0" 
-                        radius={[0, 4, 4, 0]}
-                        stroke="#0d47a1"
+                        fill="#4facfe"
+                        stroke="#2196f3"
                         strokeWidth={1}
+                        radius={[4, 4, 0, 0]}
                       />
                     </BarChart>
                   </ResponsiveContainer>
                 </Box>
               ) : (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400 }}>
-                  <Typography variant="body2" color="text.secondary">
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  height: 400,
+                  flexDirection: 'column',
+                  gap: 2
+                }}>
+                  <People sx={{ fontSize: 64, color: 'text.disabled' }} />
+                  <Typography variant="h6" color="text.secondary" align="center">
                     No participant data available
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" align="center">
+                    Upload meetings with participant information to see activity charts
                   </Typography>
                 </Box>
               )}
@@ -538,7 +698,7 @@ const Statistics = ({ stats, loading = false }) => {
                       </ListItemIcon>
                       <ListItemText
                         primary={activity.title}
-                        secondary={`${activity.date} • ${activity.participants} participants • ${activity.language?.toUpperCase()}`}
+                        secondary={`${activity.date} • ${activity.participants} participants • ${LANGUAGE_NAMES[activity.language] || activity.language?.toUpperCase() || 'Unknown'}`}
                         primaryTypographyProps={{ variant: 'body2' }}
                         secondaryTypographyProps={{ variant: 'caption' }}
                       />
