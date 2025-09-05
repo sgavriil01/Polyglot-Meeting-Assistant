@@ -23,6 +23,7 @@ from models.asr import WhisperASR
 from models.nlp import NLPProcessor
 from models.search import MeetingSearchEngine
 from session_manager import SessionManager
+from utils.language_detection import detect_text_language, get_language_name
 
 # Pydantic models for request/response
 class SearchRequest(BaseModel):
@@ -211,6 +212,25 @@ async def upload_file(
             transcript_text = transcription_result["text"]
             language = transcription_result.get("language", "unknown")
             duration = transcription_result.get("duration", 0)
+            
+            # Also analyze the transcribed text for additional language detection
+            if transcript_text and len(transcript_text.strip()) > 20:
+                text_language_result = detect_text_language(transcript_text)
+                text_detected_lang = text_language_result.get('language', 'unknown')
+                text_confidence = text_language_result.get('confidence', 0.0)
+                
+                # If text detection has higher confidence and different result, log both
+                if text_detected_lang != language and text_confidence > 0.8:
+                    print(f"🌍 Whisper detected: {get_language_name(language)} ({language})")
+                    print(f"🌍 Text analysis detected: {get_language_name(text_detected_lang)} ({text_detected_lang}) with {text_confidence:.2f} confidence")
+                    # Use text detection if significantly more confident
+                    if text_confidence > 0.9:
+                        language = text_detected_lang
+                        print(f"🔄 Using text detection result: {get_language_name(language)}")
+                else:
+                    print(f"🌍 Language confirmed: {get_language_name(language)} ({language})")
+            else:
+                print(f"🌍 Detected language: {get_language_name(language)} ({language})")
         else:
             # Process text file with size optimization
             print(f"📄 Reading text file: {file.filename}")
@@ -233,6 +253,11 @@ async def upload_file(
                 # Small file, read normally
                 with open(tmp_path, 'r', encoding='utf-8') as f:
                     transcript_text = f.read()
+            
+            # Detect language from text content
+            text_language_result = detect_text_language(transcript_text)
+            language = text_language_result.get('language', 'unknown')
+            print(f"🌍 Detected language: {get_language_name(language)} ({language}) with {text_language_result.get('confidence', 0.0):.2f} confidence")
         
         # Process with NLP in parallel for better performance
         print(f"🧠 Processing with NLP (parallel)...")
@@ -656,9 +681,30 @@ async def get_analytics(
             if meeting.get('transcript'):
                 content_distribution['transcripts'] += 1
             
-            # Participant activity
-            for participant in meeting.get('participants', []):
-                participant_counts[participant] += 1
+            # Participant activity - count actual mentions in transcript
+            participants = meeting.get('participants', [])
+            transcript_lower = meeting.get('transcript', '').lower()
+            
+            for participant in participants:
+                # Count how many times this participant speaks in the transcript
+                # Look for patterns like "NAME:" or "NAME said" or "NAME mentioned"
+                participant_lower = participant.lower()
+                patterns = [
+                    f"{participant_lower}:",  # Direct speech
+                    f"{participant_lower} said",
+                    f"{participant_lower} mentioned",
+                    f"{participant_lower} reported",
+                    f"{participant_lower} proposed",
+                    f"{participant_lower} agreed",
+                    f"{participant_lower} suggested"
+                ]
+                
+                mention_count = sum(transcript_lower.count(pattern) for pattern in patterns)
+                if mention_count > 0:
+                    participant_counts[participant] += mention_count
+                else:
+                    # If no direct mentions found, still count them as present
+                    participant_counts[participant] += 1
             
             # Language distribution
             language = meeting.get('language', 'unknown')
