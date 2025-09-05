@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
+# Force rebuild - Updated: 2025-09-05 with latest UI improvements and language detection
 # Set up cache directory with proper permissions BEFORE importing any AI models
 cache_dir = os.path.join(os.getcwd(), ".cache")
 data_dir = os.path.join(os.getcwd(), "data")
