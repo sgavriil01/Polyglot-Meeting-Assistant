@@ -1,9 +1,16 @@
 import axios from 'axios';
 
-// Use relative URL for production (HuggingFace Spaces) or localhost for development
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api/v1' 
-  : 'http://localhost:8000/api/v1';
+// API URL configuration for different environments
+const getApiBaseUrl = () => {
+  // Production: Use environment variable or default to relative URL
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.REACT_APP_API_URL || '/api/v1';
+  }
+  // Development: Use localhost
+  return 'http://localhost:8000/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Session management using localStorage and headers
 let sessionId = localStorage.getItem('session_id') || null;
