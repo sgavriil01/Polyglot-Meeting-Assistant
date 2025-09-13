@@ -24,27 +24,19 @@ An AI-powered meeting transcription and analysis tool that automatically transcr
 
 ## 🚀 Quick Start
 
-### Using Docker (Recommended)
 ```bash
-git clone https://github.com/yourusername/polyglot-meeting-assistant.git
+git clone https://github.com/sgavriil01/polyglot-meeting-assistant.git
 cd polyglot-meeting-assistant
-docker-compose up --build
+./start.sh
 ```
+
+The script will automatically:
+- Check prerequisites (Python 3.11+, Node.js 18+, npm)
+- Set up virtual environment
+- Install dependencies
+- Start both backend and frontend
 
 Visit `http://localhost:3000` to start using the application.
-
-### Local Development
-```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-python -m uvicorn src.api:app --reload --port 8000
-
-# Frontend
-cd frontend
-npm install
-npm start
-```
 
 ## 🛠️ Tech Stack
 

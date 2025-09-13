@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Polyglot Meeting Assistant - Startup Script
-# This script starts both the backend and frontend services
+# This script starts both the backend and frontend services for local development
 
 echo "🚀 Starting Polyglot Meeting Assistant..."
 
@@ -14,7 +14,7 @@ command_exists() {
 echo "📋 Checking prerequisites..."
 
 if ! command_exists python3; then
-    echo "❌ Python 3 is not installed. Please install Python 3.13+"
+    echo "❌ Python 3 is not installed. Please install Python 3.11+"
     exit 1
 fi
 
@@ -45,7 +45,7 @@ echo "🔌 Activating virtual environment..."
 source venv/bin/activate
 
 # Install dependencies if needed
-if [ ! -f "venv/lib/python*/site-packages/fastapi" ]; then
+if [ ! -f "venv/lib/python3.*/site-packages/fastapi" ] && [ ! -f "venv/lib/python*/site-packages/fastapi" ]; then
     echo "📥 Installing Python dependencies..."
     pip install -r requirements.txt
 fi
