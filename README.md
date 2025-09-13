@@ -4,8 +4,9 @@ emoji: 🎙️
 colorFrom: blue
 colorTo: indigo
 sdk: docker
-app_file: run.py
+app_file: app.py
 pinned: false
+license: mit
 ---
 
 # Polyglot Meeting Assistant
@@ -50,7 +51,7 @@ npm start
 - **Backend**: FastAPI, Python 3.11+
 - **Frontend**: React 19, Material-UI
 - **AI/ML**: OpenAI Whisper (ASR), HuggingFace Transformers (NLP), FAISS (Vector Search)
-- **Deployment**: Docker, HuggingFace Spaces
+- **Deployment**: Docker
 
 ## 📖 Usage
 

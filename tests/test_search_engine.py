@@ -84,7 +84,7 @@ def create_sample_meetings():
             'transcript': '''
             Lead Architect Alex: Today we're reviewing our microservices architecture and discussing the database migration.
             
-            Senior Engineer Maya: The user authentication service is ready for production deployment.
+            Senior Engineer Maya: The user authentication service is ready for deployment.
             
             Database Engineer Carlos: PostgreSQL performance has improved by 40% after optimization.
             
@@ -92,7 +92,7 @@ def create_sample_meetings():
             
             Alex: Excellent progress team. Maya, can you coordinate the authentication service rollout by next Tuesday?
             
-            Maya: I'll handle the production deployment and monitoring setup by Tuesday.
+            Maya: I'll handle the deployment and monitoring setup by Tuesday.
             
             Carlos: We need to migrate the legacy database by end of month.
             

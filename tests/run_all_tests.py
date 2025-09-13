@@ -95,7 +95,7 @@ def run_all_tests():
     
     if failed == 0:
         print("\n🎉 ALL TESTS PASSED! 🎉")
-        print("🚀 Polyglot Meeting Assistant is ready for production!")
+        print("🚀 Polyglot Meeting Assistant tests completed successfully!")
     else:
         print(f"\n⚠️  {failed} test(s) failed. Please review the errors above.")
     

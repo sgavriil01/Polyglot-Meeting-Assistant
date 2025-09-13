@@ -42,9 +42,6 @@ data/sessions/
 !package.json
 !package-lock.json
 
-# Allow build directory for deployment
-!frontend/build/
-
 # Logs
 *.log
 logs/
@@ -52,9 +49,6 @@ logs/
 # Environment variables
 .env
 .env.local
-.env.production
 
 # Test files
 test_files/
-CV_SUMMARY.md
-INTERVIEW_README.md

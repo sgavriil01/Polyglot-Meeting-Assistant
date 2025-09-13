@@ -208,7 +208,7 @@ def test_technical_architecture_meeting():
     
     Nina: I concluded that we need database read replicas to handle the increased load during migration.
     
-    Carlos: Everyone agreed on implementing blue-green deployment for zero-downtime releases.
+    Carlos: Everyone agreed on implementing blue-green deployment strategy for zero-downtime releases.
     """
     
     print("\n💻 TESTING: Technical Architecture Meeting Analysis")
