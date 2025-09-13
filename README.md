@@ -1,26 +1,13 @@
----
-title: Polyglot Meeting Assistant
-emoji: 🎙️
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_file: app.py
-pinned: false
-license: mit
----
+# 🎙️ Polyglot Meeting Assistant
 
-# Polyglot Meeting Assistant
+Transform your meetings into searchable, actionable insights with AI-powered transcription and analysis.
 
-An AI-powered meeting transcription and analysis tool that automatically transcribes audio, extracts key insights, and provides semantic search across your meetings.
+## ✨ What it does
 
-## ✨ Features
-
-- **🎙️ Audio Transcription** - Upload audio files (MP3, WAV, M4A) for automatic transcription
-- **📄 Text Processing** - Upload text files (TXT, MD, RTF) for analysis
-- **🧠 AI-Powered Analysis** - Automatic summarization, action item extraction, and key decision identification
-- **🔍 Semantic Search** - Search across all your meetings using natural language
-- **👥 Session Management** - Isolated user sessions with persistent data
-- **📱 Modern UI** - Clean, responsive interface built with React and Material-UI
+- **🎙️ Transcribe** audio and video files automatically
+- **🧠 Analyze** meetings to extract summaries, action items, and decisions  
+- **🔍 Search** across all your meetings using natural language
+- **� Organize** insights with session management
 
 ## 🚀 Quick Start
 
@@ -30,47 +17,45 @@ cd polyglot-meeting-assistant
 ./start.sh
 ```
 
-The script will automatically:
-- Check prerequisites (Python 3.11+, Node.js 18+, npm)
-- Set up virtual environment
-- Install dependencies
-- Start both backend and frontend
+The script will automatically set up everything you need and start the application.
 
-Visit `http://localhost:3000` to start using the application.
+**Then visit:** `http://localhost:3000`
 
-## 🛠️ Tech Stack
+## � Supported Files
 
-- **Backend**: FastAPI, Python 3.11+
-- **Frontend**: React 19, Material-UI
-- **AI/ML**: OpenAI Whisper (ASR), HuggingFace Transformers (NLP), FAISS (Vector Search)
-- **Deployment**: Docker
+- **Audio**: MP3, WAV, M4A, OGG
+- **Text**: TXT, MD
 
-## 📖 Usage
+## 🔍 Example Searches
 
-1. **Upload Files** - Drag and drop audio or text files
-2. **Automatic Processing** - AI models transcribe and analyze content
-3. **View Insights** - Get summaries, action items, and key decisions
-4. **Search** - Use natural language to find specific content across meetings
+- *"What decisions were made about the budget?"*
+- *"Action items for Sarah"*
+- *"Technical issues discussed"*
+- *"Q4 planning outcomes"*
 
-## 🔧 API Endpoints
+## 🛠️ Built With
 
-- `POST /api/v1/upload` - Upload and process files
-- `POST /api/v1/search` - Search across meetings
-- `GET /api/v1/statistics` - Get session statistics
-- `GET /api/v1/health` - Health check
+- **AI Models**: OpenAI Whisper, HuggingFace Transformers
+- **Backend**: FastAPI (Python)
+- **Frontend**: React with Material-UI
+- **Search**: FAISS vector database
 
-## 📝 License
+## 📖 Documentation
 
-MIT License - see [LICENSE](LICENSE) file for details.
+- **[Contributing Guide](CONTRIBUTING.md)** - For developers
+- **[API Documentation](http://localhost:8000/docs)** - Interactive API docs (when running)
+
+## 📄 License
+
+MIT License - feel free to use this project for any purpose.
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
 
 ---
+
+**Questions?** Open an [issue](https://github.com/sgavriil01/polyglot-meeting-assistant/issues) or check the [Contributing Guide](CONTRIBUTING.md) for development setup.
 
 
 
