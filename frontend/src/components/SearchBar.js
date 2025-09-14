@@ -19,7 +19,7 @@ import {
 import { Search, Clear, FilterList, DateRange, People } from '@mui/icons-material';
 import apiService from '../services/api';
 
-const SearchBar = ({ onSearch, loading = false, refreshTrigger = 0 }) => {
+const SearchBar = ({ onSearch, loading = false, refreshTrigger = 0, disabled = false }) => {
   const [query, setQuery] = useState('');
   const [contentType, setContentType] = useState('all');
   const [topK, setTopK] = useState(10);
@@ -96,11 +96,11 @@ const SearchBar = ({ onSearch, loading = false, refreshTrigger = 0 }) => {
           <TextField
             fullWidth
             variant="outlined"
-            placeholder="Search for anything in your meetings..."
+            placeholder={disabled ? "Please wait for uploads to complete..." : "Search for anything in your meetings..."}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={loading}
+            disabled={loading || disabled}
             InputProps={{
               startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
             }}
@@ -108,18 +108,18 @@ const SearchBar = ({ onSearch, loading = false, refreshTrigger = 0 }) => {
           <Button
             variant="contained"
             onClick={handleSearch}
-            disabled={!query.trim() || loading}
+            disabled={!query.trim() || loading || disabled}
             sx={{ minWidth: 120 }}
           >
-            {loading ? 'Searching...' : 'Search'}
+            {loading ? 'Searching...' : disabled ? 'Upload in progress...' : 'Search'}
           </Button>
-          <Tooltip title="Clear search">
-            <IconButton onClick={handleClear} disabled={!query.trim()}>
+          <Tooltip title={disabled ? "Search disabled during uploads" : "Clear search"}>
+            <IconButton onClick={handleClear} disabled={!query.trim() || disabled}>
               <Clear />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Show filters">
-            <IconButton onClick={() => setShowFilters(!showFilters)}>
+          <Tooltip title={disabled ? "Filters disabled during uploads" : "Show filters"}>
+            <IconButton onClick={() => setShowFilters(!showFilters)} disabled={disabled}>
               <FilterList />
             </IconButton>
           </Tooltip>

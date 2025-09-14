@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -24,9 +24,18 @@ import {
   Delete,
 } from '@mui/icons-material';
 
-const FileUpload = ({ onUpload, loading = false }) => {
+const FileUpload = ({ 
+  onUpload, 
+  loading = false, 
+  onUploadStateChange,
+  globalUploadStatus = {},
+  uploadFiles = [],
+  onAddUploadFile,
+  onUpdateUploadProgress,
+  onRemoveUploadFile,
+  onClearCompletedUploads
+}) => {
   const [files, setFiles] = useState([]);
-  const [uploadStatus, setUploadStatus] = useState({});
   const [dragActive, setDragActive] = useState(false);
 
   const handleDrag = useCallback((e) => {
@@ -56,54 +65,140 @@ const FileUpload = ({ onUpload, loading = false }) => {
   };
 
   const removeFile = (index) => {
+    const file = files[index];
     setFiles(prev => prev.filter((_, i) => i !== index));
-    setUploadStatus(prev => {
-      const newStatus = { ...prev };
-      delete newStatus[index];
-      return newStatus;
-    });
+    
+    // Also remove from global state if it exists
+    const uploadItem = uploadFiles.find(item => item.file.name === file.name && item.file.size === file.size);
+    if (uploadItem && onRemoveUploadFile) {
+      onRemoveUploadFile(uploadItem.id);
+    }
   };
 
-  const uploadFiles = async () => {
+  const handleUploadFiles = async () => {
     if (files.length === 0) return;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      setUploadStatus(prev => ({
-        ...prev,
-        [i]: { status: 'uploading', message: 'Uploading file...', progress: 0 }
-      }));
+      const isAudioFile = file.type.startsWith('audio/');
+      const uploadId = `${file.name}-${file.size}-${Date.now()}-${i}`;
+      let simulationActive = true;
+      
+      // Add file to global upload tracking
+      if (onAddUploadFile) {
+        onAddUploadFile(file, uploadId);
+      }
 
       try {
-        // Simulate progress updates
-        const progressInterval = setInterval(() => {
-          setUploadStatus(prev => ({
-            ...prev,
-            [i]: { 
-              ...prev[i], 
-              progress: Math.min(prev[i].progress + 10, 90),
-              message: prev[i].progress < 30 ? 'Uploading file...' : 
-                       prev[i].progress < 60 ? 'Processing with AI...' :
-                       prev[i].progress < 90 ? 'Generating insights...' : 'Finalizing...'
-            }
-          }));
-        }, 200);
+        let currentProgress = 0;
+        
+        const updateProgress = (progress, message) => {
+          if (onUpdateUploadProgress) {
+            onUpdateUploadProgress(uploadId, 'uploading', message, Math.min(progress, 95));
+          }
+        };
 
-        const result = await onUpload(file);
+        // Start the actual upload first to get real progress
+        const uploadPromise = onUpload(file, (progressData) => {
+          if (progressData.type === 'upload' && simulationActive) {
+            currentProgress = progressData.progress;
+            updateProgress(currentProgress, progressData.message);
+          }
+        });
+
+        // Wait a moment for upload to start, then continue with processing simulation
+        setTimeout(() => {
+          if (simulationActive && currentProgress >= 20) {
+            if (isAudioFile) {
+              updateProgress(30, 'Processing audio file...');
+              
+              const transcriptionInterval = setInterval(() => {
+                if (!simulationActive) {
+                  clearInterval(transcriptionInterval);
+                  return;
+                }
+                currentProgress += 3;
+                if (currentProgress <= 60) {
+                  updateProgress(currentProgress, 'Transcribing audio with AI...');
+                } else {
+                  clearInterval(transcriptionInterval);
+                  currentProgress = 65;
+                  updateProgress(currentProgress, 'Detecting language...');
+                  
+                  setTimeout(() => {
+                    if (simulationActive) {
+                      currentProgress = 70;
+                      updateProgress(currentProgress, 'Analyzing content...');
+                      
+                      setTimeout(() => {
+                        if (simulationActive) {
+                          currentProgress = 80;
+                          updateProgress(currentProgress, 'Generating summary...');
+                          
+                          setTimeout(() => {
+                            if (simulationActive) {
+                              currentProgress = 90;
+                              updateProgress(currentProgress, 'Extracting insights...');
+                            }
+                          }, 1000);
+                        }
+                      }, 1500);
+                    }
+                  }, 1000);
+                }
+              }, 800);
+            } else {
+              updateProgress(30, 'Reading text file...');
+              
+              setTimeout(() => {
+                if (simulationActive) {
+                  currentProgress = 50;
+                  updateProgress(currentProgress, 'Detecting language...');
+                  
+                  setTimeout(() => {
+                    if (simulationActive) {
+                      currentProgress = 70;
+                      updateProgress(currentProgress, 'Analyzing content...');
+                      
+                      setTimeout(() => {
+                        if (simulationActive) {
+                          currentProgress = 85;
+                          updateProgress(currentProgress, 'Generating summary...');
+                          
+                          setTimeout(() => {
+                            if (simulationActive) {
+                              currentProgress = 90;
+                              updateProgress(currentProgress, 'Extracting insights...');
+                            }
+                          }, 1000);
+                        }
+                      }, 1000);
+                    }
+                  }, 1000);
+                }
+              }, 500);
+            }
+          }
+        }, 1000);
+
+        const result = await uploadPromise;
+        simulationActive = false;
         
-        clearInterval(progressInterval);
+        // Mark as completed in global state
+        if (onUpdateUploadProgress) {
+          onUpdateUploadProgress(uploadId, 'success', result.message || 'File processed successfully!', 100);
+        }
         
-        setUploadStatus(prev => ({
-          ...prev,
-          [i]: { status: 'success', message: result.message, progress: 100 }
-        }));
       } catch (error) {
-        setUploadStatus(prev => ({
-          ...prev,
-          [i]: { status: 'error', message: error.message || 'Upload failed', progress: 0 }
-        }));
+        simulationActive = false;
+        if (onUpdateUploadProgress) {
+          onUpdateUploadProgress(uploadId, 'error', error.message || 'Upload failed', 0);
+        }
       }
     }
+
+    // Clear the local files after initiating uploads
+    setFiles([]);
   };
 
   const getFileIcon = (file) => {
@@ -126,7 +221,14 @@ const FileUpload = ({ onUpload, loading = false }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const isUploading = Object.values(uploadStatus).some(status => status.status === 'uploading');
+  const isUploading = Object.values(globalUploadStatus).some(status => status.status === 'uploading');
+
+  // Notify parent component when upload state changes
+  useEffect(() => {
+    if (onUploadStateChange) {
+      onUploadStateChange(isUploading);
+    }
+  }, [isUploading, onUploadStateChange]);
 
   return (
     <Card elevation={2}>
@@ -164,6 +266,8 @@ const FileUpload = ({ onUpload, loading = false }) => {
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Supports: Text files (.txt, .md), Audio files (.mp3, .wav, .m4a, .ogg, .flac) in 100+ languages
+            <br />
+            <strong>Processing includes:</strong> Transcription, Language Detection, Summarization, Action Items, Key Decisions
           </Typography>
           
           <input
@@ -176,24 +280,71 @@ const FileUpload = ({ onUpload, loading = false }) => {
           />
         </Paper>
 
-        {/* File List */}
-        {files.length > 0 && (
+        {/* File List - Show both local files and global upload status */}
+        {(files.length > 0 || uploadFiles.length > 0) && (
           <Box sx={{ mt: 3 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Selected Files ({files.length})
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1">
+                Files ({files.length} selected, {uploadFiles.length} uploading)
+              </Typography>
+              {uploadFiles.length > 0 && (
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={onClearCompletedUploads}
+                  disabled={isUploading}
+                >
+                  Clear Completed
+                </Button>
+              )}
+            </Box>
             
             <List>
-              {files.map((file, index) => {
-                const status = uploadStatus[index];
+              {/* Show local files that haven't been uploaded yet */}
+              {files.map((file, index) => (
+                <ListItem
+                  key={`local-${index}`}
+                  sx={{
+                    border: 1,
+                    borderColor: 'grey.200',
+                    borderRadius: 1,
+                    mb: 1,
+                  }}
+                >
+                  <ListItemIcon>
+                    {getFileIcon(file)}
+                  </ListItemIcon>
+                  
+                  <ListItemText
+                    primary={file.name}
+                    secondary={`${formatFileSize(file.size)} • ${file.type}`}
+                  />
+                  
+                  <IconButton
+                    onClick={() => removeFile(index)}
+                    disabled={isUploading}
+                  >
+                    <Delete />
+                  </IconButton>
+                </ListItem>
+              ))}
+
+              {/* Show files being uploaded with progress */}
+              {uploadFiles.map((uploadItem) => {
+                const status = globalUploadStatus[uploadItem.id];
+                const file = uploadItem.file;
+                
                 return (
                   <ListItem
-                    key={index}
+                    key={uploadItem.id}
                     sx={{
                       border: 1,
-                      borderColor: 'grey.200',
+                      borderColor: status?.status === 'error' ? 'error.main' : 
+                                   status?.status === 'success' ? 'success.main' : 'primary.main',
                       borderRadius: 1,
                       mb: 1,
+                      bgcolor: status?.status === 'error' ? 'error.50' : 
+                               status?.status === 'success' ? 'success.50' : 'primary.50',
                     }}
                   >
                     <ListItemIcon>
@@ -225,7 +376,7 @@ const FileUpload = ({ onUpload, loading = false }) => {
                     )}
                     
                     <IconButton
-                      onClick={() => removeFile(index)}
+                      onClick={() => onRemoveUploadFile && onRemoveUploadFile(uploadItem.id)}
                       disabled={status?.status === 'uploading'}
                     >
                       <Delete />
@@ -239,7 +390,7 @@ const FileUpload = ({ onUpload, loading = false }) => {
             <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
               <Button
                 variant="contained"
-                onClick={uploadFiles}
+                onClick={handleUploadFiles}
                 disabled={loading || isUploading || files.length === 0}
                 startIcon={<CloudUpload />}
               >
@@ -250,18 +401,17 @@ const FileUpload = ({ onUpload, loading = false }) => {
                 variant="outlined"
                 onClick={() => {
                   setFiles([]);
-                  setUploadStatus({});
                 }}
                 disabled={loading || isUploading}
               >
-                Clear All
+                Clear Selected
               </Button>
             </Box>
           </Box>
         )}
 
         {/* Status Messages */}
-        {Object.values(uploadStatus).map((status, index) => (
+        {Object.values(globalUploadStatus).map((status, index) => (
           status.status === 'error' && (
             <Alert key={index} severity="error" sx={{ mt: 2 }}>
               {status.message}

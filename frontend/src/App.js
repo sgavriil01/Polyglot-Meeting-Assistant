@@ -15,6 +15,7 @@ import {
   Paper,
   Badge,
   Avatar,
+  Chip,
 } from '@mui/material';
 import { Search, CloudUpload, Analytics, Business, SmartToy } from '@mui/icons-material';
 
@@ -98,6 +99,9 @@ function App() {
   const [loading, setLoading] = useState(true); // Start with loading true
   const [searchLoading, setSearchLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false); // Track if any files are uploading
+  const [globalUploadStatus, setGlobalUploadStatus] = useState({}); // Track all file upload statuses
+  const [uploadFiles, setUploadFiles] = useState([]); // Track files being uploaded
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [activeTab, setActiveTab] = useState('search');
   const [filterRefreshTrigger, setFilterRefreshTrigger] = useState(0);
@@ -140,6 +144,12 @@ function App() {
   };
 
   const handleSearch = async (searchParams) => {
+    // Prevent search while files are uploading
+    if (isUploadingFiles) {
+      showSnackbar('Please wait for file uploads to complete before searching', 'warning');
+      return;
+    }
+
     setSearchLoading(true);
     try {
       const response = await apiService.searchMeetings(searchParams);
@@ -153,9 +163,9 @@ function App() {
     }
   };
 
-  const handleFileUpload = async (file) => {
+  const handleFileUpload = async (file, onProgress) => {
     try {
-      const result = await apiService.uploadFile(file);
+      const result = await apiService.uploadFile(file, onProgress);
       if (result.success) {
         showSnackbar(`File "${result.filename}" uploaded successfully`, 'success');
         loadStats(); // reload stats and analytics
@@ -167,6 +177,50 @@ function App() {
     } catch (error) {
       throw new Error(error.message || 'Upload failed');
     }
+  };
+
+  const handleUploadStateChange = (uploading) => {
+    setIsUploadingFiles(uploading);
+  };
+
+  const addUploadFile = (file, id) => {
+    setUploadFiles(prev => [...prev, { file, id }]);
+    setGlobalUploadStatus(prev => ({
+      ...prev,
+      [id]: { status: 'uploading', message: 'Preparing upload...', progress: 0, fileName: file.name }
+    }));
+  };
+
+  const updateUploadProgress = (id, status, message, progress) => {
+    setGlobalUploadStatus(prev => ({
+      ...prev,
+      [id]: { ...prev[id], status, message, progress }
+    }));
+  };
+
+  const removeUploadFile = (id) => {
+    setUploadFiles(prev => prev.filter(item => item.id !== id));
+    setGlobalUploadStatus(prev => {
+      const newStatus = { ...prev };
+      delete newStatus[id];
+      return newStatus;
+    });
+  };
+
+  const clearCompletedUploads = () => {
+    setUploadFiles(prev => prev.filter(item => {
+      const status = globalUploadStatus[item.id];
+      return status && status.status === 'uploading';
+    }));
+    setGlobalUploadStatus(prev => {
+      const newStatus = {};
+      Object.keys(prev).forEach(id => {
+        if (prev[id].status === 'uploading') {
+          newStatus[id] = prev[id];
+        }
+      });
+      return newStatus;
+    });
   };
 
   const showSnackbar = (message, severity = 'info') => {
@@ -182,10 +236,16 @@ function App() {
       case 'search':
         return (
           <Box>
+            {isUploadingFiles && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                🚀 Files are currently being processed. Search will be available once uploads complete.
+              </Alert>
+            )}
             <SearchBar 
               onSearch={handleSearch} 
-              loading={searchLoading} 
+              loading={searchLoading || isUploadingFiles} 
               refreshTrigger={filterRefreshTrigger}
+              disabled={isUploadingFiles}
             />
             <SearchResults 
               results={searchResults} 
@@ -196,7 +256,17 @@ function App() {
         );
       case 'upload':
         return (
-          <FileUpload onUpload={handleFileUpload} loading={uploadLoading} />
+          <FileUpload 
+            onUpload={handleFileUpload} 
+            loading={uploadLoading} 
+            onUploadStateChange={handleUploadStateChange}
+            globalUploadStatus={globalUploadStatus}
+            uploadFiles={uploadFiles}
+            onAddUploadFile={addUploadFile}
+            onUpdateUploadProgress={updateUploadProgress}
+            onRemoveUploadFile={removeUploadFile}
+            onClearCompletedUploads={clearCompletedUploads}
+          />
         );
       case 'stats':
         return (
@@ -301,13 +371,46 @@ function App() {
             >
               <Tab 
                 value="search" 
-                label="Search & Discovery" 
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    Search & Discovery
+                    {isUploadingFiles && (
+                      <Chip 
+                        label="Upload in progress" 
+                        size="small" 
+                        color="warning" 
+                        variant="outlined"
+                        sx={{ fontSize: '0.7rem', height: 20 }}
+                      />
+                    )}
+                  </Box>
+                }
                 icon={<Search />}
                 iconPosition="start"
+                disabled={isUploadingFiles}
               />
               <Tab 
                 value="upload" 
-                label="Upload & Process" 
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    Upload & Process
+                    {isUploadingFiles && (
+                      <Badge 
+                        badgeContent={Object.keys(globalUploadStatus).length} 
+                        color="primary"
+                        sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem' } }}
+                      >
+                        <Chip 
+                          label="Processing" 
+                          size="small" 
+                          color="primary" 
+                          variant="filled"
+                          sx={{ fontSize: '0.7rem', height: 20 }}
+                        />
+                      </Badge>
+                    )}
+                  </Box>
+                }
                 icon={<CloudUpload />}
                 iconPosition="start"
               />

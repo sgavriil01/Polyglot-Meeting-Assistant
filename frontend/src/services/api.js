@@ -62,8 +62,8 @@ export const apiService = {
     return response.data;
   },
 
-  // Upload file
-  uploadFile: async (file) => {
+  // Upload file with progress tracking
+  uploadFile: async (file, onProgress) => {
     const formData = new FormData();
     formData.append('file', file);
 
@@ -71,6 +71,17 @@ export const apiService = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress({
+            type: 'upload',
+            progress: Math.min(percentCompleted, 25), // Upload is just 25% of total process
+            message: 'Uploading file...'
+          });
+        }
+      },
+      timeout: 300000, // 5 minutes timeout for large files
     });
     return response.data;
   },
