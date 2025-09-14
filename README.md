@@ -2,6 +2,12 @@
 
 Transform your meetings into searchable, actionable insights with AI-powered transcription and analysis.
 
+## 🌟 Live Demo
+
+**Try it now:** [https://polyglot-meeting-assistant.vercel.app/](https://polyglot-meeting-assistant.vercel.app/)
+
+*Experience the full power of AI-powered meeting analysis without any setup required!*
+
 ## ✨ What it does
 
 - **🎙️ Transcribe** audio and video files automatically
