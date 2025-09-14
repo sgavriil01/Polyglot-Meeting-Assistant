@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Default to localhost for development
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// Use environment variable or default to localhost for development
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
 
 // Session management using localStorage and headers
 let sessionId = localStorage.getItem('session_id') || null;
